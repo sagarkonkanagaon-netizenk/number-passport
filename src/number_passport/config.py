@@ -70,9 +70,24 @@ class Config:
     metrics: dict[str, Metric]
     output_dir: Path
     as_of: str | None = None
+    sas_paths: list[Path] = field(default_factory=list)
+    sas_libnames: dict[str, str] = field(default_factory=dict)  # SAS libref -> warehouse schema
+    informatica_paths: list[Path] = field(default_factory=list)
+    informatica_schemas: dict[str, str] = field(default_factory=dict)  # owner / DBD name -> schema
+    read_views: bool = True  # read view definitions from the warehouse catalog to trace through them
 
     def table(self, name: str) -> TableConfig:
         return self.tables.get(name.lower(), TableConfig())
+
+
+def _scale(name: str, m: dict[str, Any]) -> Decimal:
+    v = m.get("scale", 1)
+    if isinstance(v, str) and v.strip().lower() in {"percent", "%"}:
+        return Decimal(100)
+    try:
+        return Decimal(str(v))
+    except ArithmeticError as e:
+        raise ConfigError(f"metric {name!r}: scale must be a number or `percent`") from e
 
 
 def find_config(start: Path) -> Path:
@@ -120,12 +135,22 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
     dbt = code.get("dbt") or {}
     if isinstance(dbt, str):
         dbt = {"models": dbt}
+    sas = code.get("sas") or {}
+    if not isinstance(sas, dict):
+        sas = {"paths": sas}
+    infa = code.get("informatica") or {}
+    if not isinstance(infa, dict):
+        infa = {"paths": infa}
+    unknown_code = set(code) - {"sql", "dbt", "pyspark", "airflow", "sas", "informatica"}
+    if unknown_code:
+        raise ConfigError(f"unknown keys under `code`: {sorted(unknown_code)}")
 
     def paths(v: Any) -> list[Path]:
         return [(root / p).resolve() for p in _as_list(v)]
 
     conn = raw.get("connection") or {}
     url = conn.get("url") if isinstance(conn, dict) else conn
+    read_views = bool(conn.get("read_views", True)) if isinstance(conn, dict) else True
     if url is not None:
         url = _expand_env(str(url))
         if url.startswith(("duckdb:///", "files:///")):
@@ -149,9 +174,10 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
         )
 
     metrics: dict[str, Metric] = {}
+    ratios: dict[str, dict[str, Any]] = {}
     for name, m in (raw.get("metrics") or {}).items():
-        if not isinstance(m, dict) or "table" not in m or "column" not in m:
-            raise ConfigError(f"metric {name!r} needs at least `table` and `column`")
+        if not isinstance(m, dict):
+            raise ConfigError(f"metric {name!r} must be a mapping")
         report = m.get("report")
         if report is not None:
             if not isinstance(report, dict):
@@ -159,6 +185,12 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
             report = dict(report)
             if "file" in report:
                 report["file"] = str((root / report["file"]).resolve())
+            m = {**m, "report": report}
+        if str(m.get("agg", "sum")).lower() == "ratio":
+            ratios[name] = m
+            continue
+        if "table" not in m or "column" not in m:
+            raise ConfigError(f"metric {name!r} needs at least `table` and `column`")
         try:
             metrics[name] = Metric(
                 name=name,
@@ -168,6 +200,46 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
                 where=m.get("where"),
                 label=m.get("label"),
                 report=report,
+                scale=_scale(name, m),
+            )
+        except ValueError as e:
+            raise ConfigError(str(e)) from e
+    for name, m in ratios.items():
+        parts: dict[str, Metric] = {}
+        for role in ("numerator", "denominator"):
+            spec = m.get(role)
+            if isinstance(spec, str):
+                if spec not in metrics:
+                    raise ConfigError(f"metric {name!r}: {role} {spec!r} is not a configured metric")
+                parts[role] = metrics[spec]
+            elif isinstance(spec, dict) and "table" in spec and "column" in spec:
+                try:
+                    parts[role] = Metric(
+                        name=f"{name}__{role}",
+                        table=str(spec["table"]).lower(),
+                        column=str(spec["column"]).lower(),
+                        agg=spec.get("agg", "sum"),
+                        where=spec.get("where"),
+                        label=spec.get("label"),
+                    )
+                except ValueError as e:
+                    raise ConfigError(str(e)) from e
+            else:
+                raise ConfigError(
+                    f"metric {name!r}: a ratio needs `{role}`: a metric name, "
+                    "or table + column (+ agg, where)"
+                )
+        try:
+            metrics[name] = Metric(
+                name=name,
+                table=parts["numerator"].table,
+                column=parts["numerator"].column,
+                agg="ratio",
+                label=m.get("label"),
+                report=m.get("report"),
+                numerator=parts["numerator"],
+                denominator=parts["denominator"],
+                scale=_scale(name, m),
             )
         except ValueError as e:
             raise ConfigError(str(e)) from e
@@ -192,4 +264,9 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
         metrics=metrics,
         output_dir=(root / raw.get("output_dir", "passports")).resolve(),
         as_of=raw.get("as_of"),
+        read_views=read_views,
+        sas_paths=paths(sas.get("paths")),
+        sas_libnames={str(k).lower(): str(v).lower() for k, v in (sas.get("libnames") or {}).items()},
+        informatica_paths=paths(infa.get("paths")),
+        informatica_schemas={str(k).lower(): str(v).lower() for k, v in (infa.get("schemas") or {}).items()},
     )

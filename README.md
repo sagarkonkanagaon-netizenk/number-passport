@@ -45,9 +45,18 @@ cent and to the line of code, what every filter, join and dedup did on the way.
 
 For one number, Number Passport:
 
-1. **Builds the lineage from code, not from names.** It parses SQL (`CREATE TABLE AS`, `INSERT`), dbt models
-   (source files or `manifest.json`), PySpark jobs (translated step by step to SQL) and Airflow DAGs (to tag
-   each model with its DAG and task). Column-level lineage follows the measure through every hop.
+1. **Builds the lineage from code, not from names.** It reads:
+   - **SQL scripts and stored procedures**: `CREATE TABLE/VIEW AS`, `INSERT ... SELECT` (with column lists,
+     several inserts into one table), `SELECT INTO`, `MERGE`, temp tables, and `DELETE`/`UPDATE` run after a
+     load; procedure bodies in SQL Server, PostgreSQL, Snowflake, BigQuery and Oracle;
+   - **dbt** models (source files or `manifest.json`);
+   - **PySpark** jobs, translated step by step to SQL (including `union` and `unionByName`);
+   - **SAS** programs: `PROC SQL`, DATA steps, `PROC SORT`, `PROC MEANS/SUMMARY`, `PROC APPEND`;
+   - **Informatica PowerCenter** mappings from repository XML exports;
+   - **views that live only in the warehouse**, read from the database catalog;
+   - **Airflow** DAGs, to tag each model with its DAG and task.
+
+   Column-level lineage follows the measure through every hop.
 2. **Reconciles every hop.** For each table on the path it compares:
    - the value the table holds now;
    - the value its code would produce if re-run now (a mismatch is flagged as `table_code_mismatch`);
@@ -63,6 +72,10 @@ For one number, Number Passport:
    cards and findings), `passport.json`, `replay.sql` (every query it ran) and `MANIFEST.sha256`.
 6. **Re-checks a pack later** with `passport verify`: file integrity, whether any pipeline code changed
    since, and whether every query still returns the same result.
+
+Sums and counts are traced hop by hop. **Averages and ratios** (capital ratios, coverage, RWA density) are
+traced as their two additive parts, each with its own evidence, and the figure is re-derived from the two
+reconciled totals and checked against the report at the report's precision.
 
 Statuses are strict: `verified`, `gaps_found`, `partially_verified` (some hops could not be checked) and
 `lineage_only` (offline). A residual above tolerance is never rounded away.
@@ -125,12 +138,21 @@ Use `${PASSPORT_DB_URL:-default}` in `passport.yml` to keep credentials out of t
 
 ## Use it from an AI assistant
 
-Number Passport ships an MCP server and an agent skill (`skill/SKILL.md`). The skill tells the assistant how
-to run the method and how to talk about results honestly; the server does the work.
+Number Passport ships an MCP server and an agent skill (`skills/number-passport/SKILL.md`). The skill tells
+the assistant how to run the method and how to talk about results honestly; the server does the work.
+
+**Claude Code plugin** (installs both; needs [uv](https://docs.astral.sh/uv/)). Inside Claude Code:
+
+```
+/plugin marketplace add sagarkonkanagaon-netizenk/number-passport
+/plugin install number-passport@number-passport
+```
+
+Then run Claude Code in the folder that holds `passport.yml`. Or set it up by hand:
 
 ```bash
 claude mcp add number-passport -- passport mcp --project /path/to/project
-cp -r skill ~/.claude/skills/number-passport
+cp -r skills/number-passport ~/.claude/skills/number-passport
 ```
 
 For Claude Desktop, Cursor and other MCP clients:
@@ -184,16 +206,21 @@ cell.
 
 ## Limitations
 
-- Measures must be additive (`sum` or `count`). Ratios and averages are traced through their numerator and
-  denominator metrics.
+- Sums and counts are traced hop by hop; averages and ratios through their two additive parts. Medians,
+  percentiles and distinct counts are not additive and cannot be reconciled this way.
 - dbt Jinja beyond `ref`, `source` and `config` (macros, loops) marks the model `opaque`; use
   `dbt compile` and point `code.dbt.manifest` at `target/manifest.json` to trace compiled SQL.
-- The PySpark translator covers the DataFrame API used in ETL (select, filter, withColumn, join, groupBy,
-  agg, drop, dedup, renames, `spark.sql` strings). UDFs, RDDs and dynamic code are marked `opaque` with their
-  upstream tables, so lineage continues but that hop is not reconciled.
-- `dropDuplicates` keeps an arbitrary row in Spark; the translation keeps the first by key and the pack
-  notes it.
-- Stored procedures and views defined only in the database are not parsed.
+- The PySpark translator covers the DataFrame API used in ETL (select, filter, withColumn, join, union,
+  groupBy, agg, drop, dedup, renames, `spark.sql` strings). UDFs, RDDs and dynamic code are marked `opaque`
+  with their upstream tables, so lineage continues but that hop is not reconciled. The same holds for SAS
+  `RETAIN`, `DO` loops, arrays and macro logic, Informatica Java or Normalizer transformations and `$$`
+  parameters, and `MERGE` upserts, whose result depends on rows already in the table.
+- Dynamic SQL (`EXEC` of a string, `EXECUTE IMMEDIATE`) cannot be read statically. It is listed under
+  parse issues, not silently skipped.
+- `IF` branches inside procedures are assumed to have run; each one is noted on the hop.
+- `dropDuplicates` and `PROC SORT NODUPKEY` keep an arbitrary or input-order row; the translation keeps the
+  first by key and the pack notes it.
+- Informatica session-level overrides (SQL or table name set in the workflow, not the mapping) are not read.
 
 ## Development
 

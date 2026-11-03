@@ -22,10 +22,12 @@ project: {name}
 dialect: duckdb            # dialect your pipeline SQL is written in (duckdb, postgres, snowflake, spark, ...)
 
 code:
-  sql: models              # CREATE TABLE ... AS / INSERT INTO ... SELECT files
+  sql: models              # SQL scripts and stored procedures (.sql)
   # dbt:
   #   manifest: target/manifest.json   # preferred: run `dbt compile` first
   # pyspark: jobs
+  # sas: {{paths: sas, libnames: {{dw: gold}}}}
+  # informatica: {{paths: informatica_exports, schemas: {{RAW_DB: raw}}}}
   # airflow: dags
 
 connection:
@@ -44,6 +46,11 @@ metrics:
   #   table: gold.rwa_by_class
   #   column: rwa_usd
   #   report: {{file: reports/capital.csv, row: Total RWA, column: value}}
+  # rwa_density:
+  #   agg: ratio
+  #   numerator: total_rwa
+  #   denominator: {{table: gold.rwa_by_class, column: ead_usd}}
+  #   scale: percent
 """
 
 
@@ -69,24 +76,40 @@ def cmd_trace(a: argparse.Namespace) -> int:
     s = service.summary(passport, pack)
     if a.json:
         _print_json(s)
+    elif "parts" in s:
+        m = s["metric"]
+        print(f"{m['label'] or m['name']}: {s['status'].upper().replace('_', ' ')}")
+        print(f"  value {s['value']} = {s['formula']}")
+        if s["report"]:
+            r = s["report"]
+            print(f"  report {r['value']} ({r['where']}): {r['status']}")
+            for f in r["findings"]:
+                print(f"           ! {f}")
+        for role, part in s["parts"].items():
+            print(f"\n  {role}: {part['metric']['name']} {part['status'].upper().replace('_', ' ')}")
+            _print_hops(part)
+        print(f"\nevidence pack: {pack}")
+        print(f"open {pack / 'passport.html'}")
     else:
         m = s["metric"]
         print(f"{m['label'] or m['name']}: {s['status'].upper().replace('_', ' ')}")
-        for h in s["hops"]:
-            val = h["value"] if h["value"] is not None else "-"
-            extra = f"  unexplained {h['unexplained']}" if h["unexplained"] not in (None, "0.00") else ""
-            print(
-                f"  hop {h['hop']:>2} {h['status']:<17} {h['table']:<32} {h['measure']:<26} {val:>22}{extra}"
-            )
-            for st in h["steps"]:
-                rows = "" if st["rows_removed"] is None else f"{st['rows_removed']:>6} rows"
-                eff = "" if st["value_effect"] is None else f" {st['value_effect']:>18}"
-                print(f"           - {st['what'][:58]:<58} {rows}{eff}  {st['where']}")
-            for f in h["findings"]:
-                print(f"           ! {f}")
+        _print_hops(s)
         print(f"\n{s['queries_run']} read-only queries · evidence pack: {pack}")
         print(f"open {pack / 'passport.html'}")
     return 2 if passport.status == "gaps_found" and a.strict else 0
+
+
+def _print_hops(s: dict[str, Any]) -> None:
+    for h in s["hops"]:
+        val = h["value"] if h["value"] is not None else "-"
+        extra = f"  unexplained {h['unexplained']}" if h["unexplained"] not in (None, "0.00") else ""
+        print(f"  hop {h['hop']:>2} {h['status']:<17} {h['table']:<32} {h['measure']:<26} {val:>22}{extra}")
+        for st in h["steps"]:
+            rows = "" if st["rows_removed"] is None else f"{st['rows_removed']:>6} rows"
+            eff = "" if st["value_effect"] is None else f" {st['value_effect']:>18}"
+            print(f"           - {st['what'][:58]:<58} {rows}{eff}  {st['where']}")
+        for f in h["findings"]:
+            print(f"           ! {f}")
 
 
 def cmd_lineage(a: argparse.Namespace) -> int:
@@ -163,7 +186,7 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("metric", nargs="?", help="configured metric name")
     t.add_argument("--table")
     t.add_argument("--column")
-    t.add_argument("--agg", default="sum", choices=["sum", "count"])
+    t.add_argument("--agg", default="sum", choices=["sum", "count", "avg"])
     t.add_argument("--where", help="SQL filter on the metric table")
     t.add_argument("--out", help="evidence pack folder (default: passports/<metric>-<timestamp>)")
     t.add_argument("--offline", action="store_true", help="lineage only, no database")

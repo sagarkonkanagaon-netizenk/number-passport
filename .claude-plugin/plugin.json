@@ -1,0 +1,13 @@
+{
+  "name": "number-passport",
+  "version": "0.2.0",
+  "description": "Trace a reported number back to its source rows through SQL, stored procedures, dbt, PySpark, SAS and Informatica code, reconcile every hop with file:line explanations, and write an auditor-ready evidence pack (BCBS 239 lineage evidence).",
+  "author": {
+    "name": "Sagar Konkanagaon",
+    "url": "https://github.com/sagarkonkanagaon-netizenk"
+  },
+  "homepage": "https://github.com/sagarkonkanagaon-netizenk/number-passport",
+  "repository": "https://github.com/sagarkonkanagaon-netizenk/number-passport",
+  "license": "Apache-2.0",
+  "keywords": ["bcbs239", "data-lineage", "reconciliation", "regulatory-reporting", "banking", "mcp"]
+}

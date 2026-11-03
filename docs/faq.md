@@ -31,8 +31,18 @@ validation. It does not replace your control framework; it gives it evidence.
 
 ## What if our pipelines use stored procedures, Informatica or SAS?
 
-Not parsed today. Export the SQL they run into `.sql` files to include it, or treat those tables as sources:
-the passport still reconciles everything downstream of them.
+All three are read directly (since 0.2.0):
+
+- **Stored procedures** in `.sql` files: SQL Server (`GO` batches, no semicolons needed), PostgreSQL
+  (PL/pgSQL `$$` bodies and `DO` blocks), Snowflake, BigQuery and Oracle (PL/SQL). The statements inside the
+  body are read like any script; temp tables are inlined, `IF` branches are noted, and dynamic SQL is listed
+  as a parse issue.
+- **SAS** programs (`code.sas`): `PROC SQL`, DATA steps, `PROC SORT`, `PROC MEANS/SUMMARY`, `PROC APPEND`,
+  `%LET` variables. WORK datasets are inlined; librefs map to warehouse schemas.
+- **Informatica PowerCenter** (`code.informatica`): export the folder or workflow as XML from the Repository
+  Manager. Each target in each mapping becomes a hop, with one step per transformation and the XML line.
+
+Views that exist only in the database are read from its catalog, so a trace no longer stops at them.
 
 ## What if part of a PySpark job can't be translated?
 
@@ -41,7 +51,11 @@ That model is marked opaque. The trace continues through its upstream tables, an
 
 ## Can it handle averages or ratios?
 
-Trace the numerator and denominator as two metrics. Each is additive and can be reconciled exactly.
+Yes. Use `agg: avg`, or `agg: ratio` with a `numerator` and a `denominator` (and `scale: percent` for a
+percentage). An average or a ratio cannot be reconciled hop by hop, because it does not add up across rows,
+so each part is traced and reconciled on its own, with its own evidence, and the figure is re-derived from
+the two reconciled totals. A report figure is checked at the precision it is printed with: 13.2% matches
+13.2449%.
 
 ## How long does a trace take?
 

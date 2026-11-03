@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "number-passport": {
+      "command": "uvx",
+      "args": ["--from", "number-passport[mcp]>=0.2.0", "passport", "mcp"]
+    }
+  }
+}

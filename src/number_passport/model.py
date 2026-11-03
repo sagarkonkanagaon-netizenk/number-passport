@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal
 from enum import Enum
 from typing import Any
 
@@ -138,7 +139,12 @@ class Hop:
 
 @dataclass
 class Metric:
-    """A number someone may ask about: an additive aggregate over a table column."""
+    """A number someone may ask about.
+
+    ``sum`` and ``count`` are additive, so they are traced hop by hop. ``avg`` and ``ratio`` are not: they
+    are traced as two additive parts (``avg`` = sum / count of non-null values; ``ratio`` = numerator /
+    denominator, each a sum or a count) and the figure is re-derived from the two reconciled parts.
+    """
 
     name: str
     table: str
@@ -147,10 +153,30 @@ class Metric:
     where: str | None = None
     label: str | None = None
     report: dict[str, Any] | None = None  # {"file":..., "row":..., "column":..., "value":...}
+    numerator: Metric | None = None
+    denominator: Metric | None = None
+    scale: Decimal = Decimal(1)  # 100 for a percentage
 
     def __post_init__(self) -> None:
         self.agg = self.agg.lower()
-        if self.agg not in {"sum", "count"}:
-            raise ValueError(
-                f"metric {self.name!r}: aggregate {self.agg!r} is not additive across hops; use sum or count"
+        if self.agg not in {"sum", "count", "avg", "ratio"}:
+            raise ValueError(f"metric {self.name!r}: aggregate {self.agg!r} must be sum, count, avg or ratio")
+        if self.agg == "avg" and self.numerator is None:
+            not_null = f"{self.column} IS NOT NULL"
+            self.numerator = Metric(f"{self.name}__sum", self.table, self.column, "sum", self.where)
+            self.denominator = Metric(
+                f"{self.name}__count",
+                self.table,
+                self.column,
+                "count",
+                f"({self.where}) AND {not_null}" if self.where else not_null,
             )
+        if self.agg == "ratio" and (self.numerator is None or self.denominator is None):
+            raise ValueError(f"metric {self.name!r}: a ratio needs a numerator and a denominator")
+        for part in (self.numerator, self.denominator):
+            if part is not None and part.agg not in {"sum", "count"}:
+                raise ValueError(f"metric {self.name!r}: ratio parts must be sums or counts, not {part.agg}")
+
+    @property
+    def composite(self) -> bool:
+        return self.agg in {"avg", "ratio"}

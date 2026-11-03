@@ -26,7 +26,9 @@ To report a vulnerability, see [SECURITY.md](../SECURITY.md).
 | Small groups re-identify a customer | `GROUP BY` output is off by default. It is only allowed in `allow_dimensions` mode, on columns the data owner lists in `safe_dimensions`. |
 | Evidence is edited after the fact | `MANIFEST.sha256` covers every pack file, and `passport verify` checks it. Code files and query results are hashed too, so code or data drift is detected. |
 | Evidence describes code that no longer runs | `verify` re-hashes every pipeline file the trace read and reports any change. |
-| Untrusted pipeline code is executed | Pipeline code is **parsed, never imported or executed**. PySpark jobs are read as a syntax tree and translated to SQL; DAG files are parsed the same way. |
+| Untrusted pipeline code is executed | Pipeline code is **parsed, never imported or executed**. PySpark jobs are read as a syntax tree and translated to SQL; DAG files are parsed the same way. SAS programs and stored procedures are read as text; nothing is submitted to SAS or the database. |
+| A crafted Informatica export attacks the XML parser | Exports with entity declarations are refused before parsing, and the DTD reference is dropped, never fetched. |
+| Catalog reads leak data | To follow views that exist only in the warehouse, the connector reads view definitions from the catalog (`duckdb_views()`, `pg_views`, `pg_matviews` or the SQLAlchemy inspector). These are metadata reads, like the column lists read from `information_schema`; no rows of any table are read. Turn them off with `connection.read_views: false`. |
 | The MCP HTTP server is exposed | `passport mcp --http` binds to `127.0.0.1` by default and has no authentication of its own. Run it behind your authenticating gateway; never expose it directly. |
 
 ## The query guard, precisely

@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+import sqlglot
+from sqlglot import exp
+from sqlglot.errors import ParseError, TokenError
 
 from .config import Config
-from .model import Model
+from .model import Model, SourceRef
+from .parsers import referenced_tables
 from .parsers.airflow_parser import scan_airflow
 from .parsers.dbt_parser import scan_dbt_manifest, scan_dbt_sources
+from .parsers.informatica_parser import scan_informatica
 from .parsers.pyspark_parser import scan_pyspark
+from .parsers.sas_parser import scan_sas
 from .parsers.sql_parser import ParseIssue, scan_sql
+
+if TYPE_CHECKING:
+    from .connectors import Connector
 
 
 class LineageError(Exception):
@@ -23,6 +35,7 @@ class Project:
     models: dict[str, Model]
     issues: list[ParseIssue] = field(default_factory=list)
     duplicates: dict[str, list[str]] = field(default_factory=dict)
+    warehouse_views: dict[str, str] = field(default_factory=dict)  # view -> sha256 of its definition
 
     def model_for(self, table: str) -> Model | None:
         return self.models.get(table.lower())
@@ -84,6 +97,8 @@ def load_project(cfg: Config, schema: dict[str, list[str]] | None = None) -> Pro
     else:
         take(scan_dbt_sources(cfg.dbt_models, cfg.root, cfg.dialect, cfg.dbt_schema_map))
     take(scan_pyspark(cfg.pyspark_paths, cfg.root, cfg.dialect, schema))
+    take(scan_sas(cfg.sas_paths, cfg.root, cfg.sas_libnames, schema))
+    take(scan_informatica(cfg.informatica_paths, cfg.root, cfg.informatica_schemas))
     orchestration, a_issues = scan_airflow(cfg.airflow_paths, cfg.root)
     issues.extend(a_issues)
 
@@ -96,3 +111,47 @@ def load_project(cfg: Config, schema: dict[str, list[str]] | None = None) -> Pro
             continue
         models[m.target] = m
     return Project(models=models, issues=issues, duplicates=duplicates)
+
+
+def view_model(name: str, definition: str, dialect: str) -> Model | None:
+    """A view defined only in the warehouse, as a model (its definition comes from the catalog)."""
+    try:
+        node = sqlglot.parse_one(definition.strip().rstrip(";"), dialect=dialect)
+    except (ParseError, TokenError):
+        return None
+    query = node.expression if isinstance(node, exp.Create) else node
+    if not isinstance(query, exp.Query):
+        return None
+    return Model(
+        target=name,
+        query=query,
+        kind="warehouse view",
+        source=SourceRef(f"warehouse view {name}"),
+        dialect=dialect,
+        upstream=[u for u in referenced_tables(query) if u != name],
+        notes=["definition read from the warehouse catalog (no pipeline file in this project builds it)"],
+    )
+
+
+def add_warehouse_views(project: Project, connector: Connector, extra: Iterable[str] = ()) -> None:
+    """Add warehouse views that the code reads (or the metric names) but no pipeline file defines.
+
+    Walks upward: a view over another view is followed too. Only catalog metadata is read.
+    """
+    tried: set[str] = set()
+    frontier = [*project.tables(), *extra]
+    for _ in range(50):
+        frontier = [t for t in dict.fromkeys(frontier) if t not in tried and t not in project.models]
+        if not frontier:
+            return
+        tried.update(frontier)
+        found: list[str] = []
+        for name, sql in connector.views(frontier).items():
+            m = view_model(name, sql, connector.dialect)
+            if m is None:
+                project.issues.append(ParseIssue(f"warehouse view {name}", "could not parse its definition"))
+                continue
+            project.models[name] = m
+            project.warehouse_views[name] = hashlib.sha256(sql.encode()).hexdigest()
+            found.extend(m.upstream)
+        frontier = found

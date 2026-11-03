@@ -225,7 +225,13 @@ class HopAnalyzer:
         Returns the next hops (both roles) and the factor references as ``table.column`` strings.
         """
         sch: dict[str, Any] = {}
-        for t, cols in self.schema.items():
+        # sqlglot needs one nesting level: use the tables this query reads, at their most common depth
+        wanted = {t: c for t, c in self.schema.items() if t in self.model.upstream}
+        depths = [t.count(".") for t in wanted]
+        depth = max(set(depths), key=depths.count) if depths else 0
+        for t, cols in wanted.items():
+            if t.count(".") != depth:
+                continue
             parts = t.split(".")
             node = sch
             for p in parts[:-1]:

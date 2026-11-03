@@ -21,9 +21,18 @@ code:                            # every path is relative to this file; each acc
       marts: gold
   pyspark: jobs                  # PySpark job files
   airflow: dags                  # Airflow DAG files
+  sas:                           # SAS programs (.sas)
+    paths: sas
+    libnames:                    # SAS libref -> warehouse schema (LIBNAME ... SCHEMA= is read too)
+      dw: gold
+  informatica:                   # PowerCenter repository XML exports (.xml)
+    paths: informatica
+    schemas:                     # source/target owner or DBD name -> warehouse schema
+      RAW_DB: raw
 
 connection:
   url: ${PASSPORT_DB_URL:-duckdb:///warehouse/bank.duckdb}
+  read_views: true               # read definitions of views that exist only in the warehouse (default)
 
 privacy:
   mode: aggregates_only          # or allow_dimensions
@@ -49,7 +58,7 @@ metrics:
     label: Total risk-weighted assets (USD)
     table: gold.rwa_by_class
     column: rwa_usd
-    agg: sum                     # sum | count
+    agg: sum                     # sum | count | avg | ratio
     where: asset_class = 'CORPORATE'   # optional SQL filter on the metric table
     report:                      # optional: the published figure to check
       file: reports/q3_capital_report.csv
@@ -58,6 +67,15 @@ metrics:
       # or, when the report is not a CSV:
       # value: 1088769797.07
       # source: "Q3 Pillar 3 disclosure, table OV1, row 29"
+  rwa_density:
+    label: RWA density (%)
+    agg: ratio
+    numerator: total_rwa         # a metric name...
+    denominator:                 # ...or table + column (+ agg, where)
+      table: gold.rwa_by_class
+      column: ead_usd
+    scale: percent               # multiply by 100
+    report: { value: "45.89%" }
 ```
 
 ## Connection URLs
@@ -81,13 +99,18 @@ can run with a write-capable login because every query is guarded, but the docto
 
 | Key | Required | Meaning |
 |-----|----------|---------|
-| `table` | yes | Table the number is aggregated from. |
-| `column` | yes | Measure column. |
-| `agg` | no | `sum` (default) or `count`. Ratios are traced as two metrics. |
+| `table` | yes (not for `ratio`) | Table the number is aggregated from. |
+| `column` | yes (not for `ratio`) | Measure column. |
+| `agg` | no | `sum` (default), `count`, `avg` (traced as sum and count of non-null values) or `ratio`. |
+| `numerator`, `denominator` | for `ratio` | A configured metric name, or `table`, `column`, optional `agg` (sum or count) and `where`. |
+| `scale` | no | Multiplier for the derived figure, e.g. `100` or `percent`. |
 | `where` | no | SQL filter, in the warehouse dialect. |
 | `label` | no | Human name shown in reports. |
 | `report.file`, `report.row`, `report.column` | no | A CSV cell holding the published figure. Thousands separators are accepted. |
 | `report.value`, `report.source` | no | The published figure typed in, with a citation of where it appears. |
+
+For `avg` and `ratio`, the report figure is compared at the precision it is printed with, and `%` signs are
+accepted. The evidence pack holds one sub-pack per part (`numerator/`, `denominator/`) and a cover page.
 
 Ad hoc traces need no metric: `passport trace --table gold.rwa_by_class --column rwa_usd --where "..."`.
 
