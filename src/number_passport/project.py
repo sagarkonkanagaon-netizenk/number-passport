@@ -17,6 +17,7 @@ from .model import Model, SourceRef
 from .parsers import referenced_tables
 from .parsers.airflow_parser import scan_airflow
 from .parsers.dbt_parser import scan_dbt_manifest, scan_dbt_sources
+from .parsers.informatica_parser import scan_informatica
 from .parsers.pyspark_parser import scan_pyspark
 from .parsers.sas_parser import scan_sas
 from .parsers.sql_parser import ParseIssue, scan_sql
@@ -97,6 +98,7 @@ def load_project(cfg: Config, schema: dict[str, list[str]] | None = None) -> Pro
         take(scan_dbt_sources(cfg.dbt_models, cfg.root, cfg.dialect, cfg.dbt_schema_map))
     take(scan_pyspark(cfg.pyspark_paths, cfg.root, cfg.dialect, schema))
     take(scan_sas(cfg.sas_paths, cfg.root, cfg.sas_libnames, schema))
+    take(scan_informatica(cfg.informatica_paths, cfg.root, cfg.informatica_schemas))
     orchestration, a_issues = scan_airflow(cfg.airflow_paths, cfg.root)
     issues.extend(a_issues)
 

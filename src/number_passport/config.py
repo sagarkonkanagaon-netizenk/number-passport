@@ -73,6 +73,7 @@ class Config:
     sas_paths: list[Path] = field(default_factory=list)
     sas_libnames: dict[str, str] = field(default_factory=dict)  # SAS libref -> warehouse schema
     informatica_paths: list[Path] = field(default_factory=list)
+    informatica_schemas: dict[str, str] = field(default_factory=dict)  # owner / DBD name -> schema
     read_views: bool = True  # read view definitions from the warehouse catalog to trace through them
 
     def table(self, name: str) -> TableConfig:
@@ -127,6 +128,9 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
     sas = code.get("sas") or {}
     if not isinstance(sas, dict):
         sas = {"paths": sas}
+    infa = code.get("informatica") or {}
+    if not isinstance(infa, dict):
+        infa = {"paths": infa}
     unknown_code = set(code) - {"sql", "dbt", "pyspark", "airflow", "sas", "informatica"}
     if unknown_code:
         raise ConfigError(f"unknown keys under `code`: {sorted(unknown_code)}")
@@ -206,5 +210,6 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
         read_views=read_views,
         sas_paths=paths(sas.get("paths")),
         sas_libnames={str(k).lower(): str(v).lower() for k, v in (sas.get("libnames") or {}).items()},
-        informatica_paths=paths(code.get("informatica")),
+        informatica_paths=paths(infa.get("paths")),
+        informatica_schemas={str(k).lower(): str(v).lower() for k, v in (infa.get("schemas") or {}).items()},
     )
