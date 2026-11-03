@@ -102,7 +102,7 @@ jobs:
           set +e; passport trace total_rwa --strict --out passports/total_rwa; code=$?; set -e
           test "$code" -eq 2 || { echo "expected exit 2 (gaps found), got $code"; exit 1; }
           passport verify passports/total_rwa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sample-evidence-pack
           path: examples/bank/passports/total_rwa
