@@ -188,10 +188,15 @@ def run_doctor(path: str | Path = ".", connector: Connector | None = None) -> li
     # 8. metrics
     for name, met in cfg.metrics.items():
         problems = []
-        if project.model_for(met.table) is None and met.table not in project.tables():
-            problems.append(f"table {met.table} is not in the code")
-        if conn is not None and met.table in schema and met.column not in schema[met.table]:
-            problems.append(f"column {met.column} not in {met.table}")
+        parts = [p for p in (met.numerator, met.denominator) if p is not None] if met.composite else [met]
+        for part in parts:
+            known = project.model_for(part.table) is not None or part.table in project.tables()
+            if not known and conn is not None and cfg.read_views and conn.views([part.table]):
+                known = True  # a view defined only in the warehouse
+            if not known:
+                problems.append(f"table {part.table} is not in the code")
+            if conn is not None and part.table in schema and part.column not in schema[part.table]:
+                problems.append(f"column {part.column} not in {part.table}")
         if met.report:
             try:
                 _v, cell = read_report_value(met.report)
@@ -202,7 +207,9 @@ def run_doctor(path: str | Path = ".", connector: Connector | None = None) -> li
             "fail" if problems else "pass",
             "; ".join(problems)
             if problems
-            else f"{met.agg}({met.table}.{met.column})" + (f", report cell {cell}" if met.report else ""),
+            else " / ".join(f"{p.agg}({p.table}.{p.column})" for p in parts)
+            + (f" x {met.scale}" if met.scale != 1 else "")
+            + (f", report cell {cell}" if met.report else ""),
         )
 
     # 9. output and MCP

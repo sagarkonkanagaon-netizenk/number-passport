@@ -80,6 +80,16 @@ class Config:
         return self.tables.get(name.lower(), TableConfig())
 
 
+def _scale(name: str, m: dict[str, Any]) -> Decimal:
+    v = m.get("scale", 1)
+    if isinstance(v, str) and v.strip().lower() in {"percent", "%"}:
+        return Decimal(100)
+    try:
+        return Decimal(str(v))
+    except ArithmeticError as e:
+        raise ConfigError(f"metric {name!r}: scale must be a number or `percent`") from e
+
+
 def find_config(start: Path) -> Path:
     start = start.resolve()
     if start.is_file():
@@ -164,9 +174,10 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
         )
 
     metrics: dict[str, Metric] = {}
+    ratios: dict[str, dict[str, Any]] = {}
     for name, m in (raw.get("metrics") or {}).items():
-        if not isinstance(m, dict) or "table" not in m or "column" not in m:
-            raise ConfigError(f"metric {name!r} needs at least `table` and `column`")
+        if not isinstance(m, dict):
+            raise ConfigError(f"metric {name!r} must be a mapping")
         report = m.get("report")
         if report is not None:
             if not isinstance(report, dict):
@@ -174,6 +185,12 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
             report = dict(report)
             if "file" in report:
                 report["file"] = str((root / report["file"]).resolve())
+            m = {**m, "report": report}
+        if str(m.get("agg", "sum")).lower() == "ratio":
+            ratios[name] = m
+            continue
+        if "table" not in m or "column" not in m:
+            raise ConfigError(f"metric {name!r} needs at least `table` and `column`")
         try:
             metrics[name] = Metric(
                 name=name,
@@ -183,6 +200,46 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
                 where=m.get("where"),
                 label=m.get("label"),
                 report=report,
+                scale=_scale(name, m),
+            )
+        except ValueError as e:
+            raise ConfigError(str(e)) from e
+    for name, m in ratios.items():
+        parts: dict[str, Metric] = {}
+        for role in ("numerator", "denominator"):
+            spec = m.get(role)
+            if isinstance(spec, str):
+                if spec not in metrics:
+                    raise ConfigError(f"metric {name!r}: {role} {spec!r} is not a configured metric")
+                parts[role] = metrics[spec]
+            elif isinstance(spec, dict) and "table" in spec and "column" in spec:
+                try:
+                    parts[role] = Metric(
+                        name=f"{name}__{role}",
+                        table=str(spec["table"]).lower(),
+                        column=str(spec["column"]).lower(),
+                        agg=spec.get("agg", "sum"),
+                        where=spec.get("where"),
+                        label=spec.get("label"),
+                    )
+                except ValueError as e:
+                    raise ConfigError(str(e)) from e
+            else:
+                raise ConfigError(
+                    f"metric {name!r}: a ratio needs `{role}`: a metric name, "
+                    "or table + column (+ agg, where)"
+                )
+        try:
+            metrics[name] = Metric(
+                name=name,
+                table=parts["numerator"].table,
+                column=parts["numerator"].column,
+                agg="ratio",
+                label=m.get("label"),
+                report=m.get("report"),
+                numerator=parts["numerator"],
+                denominator=parts["denominator"],
+                scale=_scale(name, m),
             )
         except ValueError as e:
             raise ConfigError(str(e)) from e

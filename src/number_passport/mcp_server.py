@@ -92,8 +92,9 @@ def build_server(default_project: str | None = None) -> MCPServer:
         offline: bool = False,
     ) -> dict[str, Any]:
         """Trace a number to its source rows and reconcile every hop. Give a configured metric name, or a
-        table + column (+ optional agg sum|count and SQL where). Writes an evidence pack (HTML, JSON,
-        replay.sql, manifest) and returns a digest with status, per-hop values, steps and findings."""
+        table + column (+ optional agg sum|count|avg and SQL where). Averages and configured ratios are
+        traced as their two additive parts. Writes an evidence pack (HTML, JSON, replay.sql, manifest)
+        and returns a digest with status, per-hop values, steps and findings."""
         passport, pack = service.trace(proj(project_dir), metric, table, column, agg, where, offline=offline)
         return service.summary(passport, pack)
 

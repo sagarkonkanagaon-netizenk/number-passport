@@ -16,13 +16,14 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .connectors import Connector, ConnectorError
 from .guard import GuardViolation, check_query, result_hash
-from .trace import Passport
+from .trace import CompositePassport, Passport
 
 PACK_FILES = ("passport.json", "passport.html", "replay.sql")
 
@@ -31,7 +32,9 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def write_pack(passport: Passport, out_dir: Path) -> Path:
+def write_pack(passport: Passport | CompositePassport, out_dir: Path) -> Path:
+    if isinstance(passport, CompositePassport):
+        return _write_composite(passport, out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     data = passport.to_dict()
     (out_dir / "passport.json").write_text(
@@ -42,6 +45,68 @@ def write_pack(passport: Passport, out_dir: Path) -> Path:
     manifest = "".join(f"{_sha(out_dir / f)}  {f}\n" for f in PACK_FILES)
     (out_dir / "MANIFEST.sha256").write_text(manifest, encoding="utf-8")
     return out_dir
+
+
+def _write_composite(cp: CompositePassport, out_dir: Path) -> Path:
+    """An average or ratio: one sub-pack per part, plus a cover page and a manifest over everything."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    files: list[str] = []
+    part_html: dict[str, str] = {}
+    for role, p in cp.parts.items():
+        write_pack(p, out_dir / role)
+        files += [f"{role}/{f}" for f in (*PACK_FILES, "MANIFEST.sha256")]
+        part_html[role] = (out_dir / role / "passport.html").read_text(encoding="utf-8")
+    data = cp.to_dict()
+    (out_dir / "passport.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    (out_dir / "passport.html").write_text(render_composite_html(data, part_html), encoding="utf-8")
+    replay = [f"-- Number Passport: {data['metric']['name']} = {data['formula']}", ""]
+    for role in cp.parts:
+        replay += [f"-- ===== {role} (see {role}/replay.sql) =====", ""]
+        replay.append((out_dir / role / "replay.sql").read_text(encoding="utf-8"))
+    (out_dir / "replay.sql").write_text("\n".join(replay), encoding="utf-8")
+    files = [*PACK_FILES, *files]
+    (out_dir / "MANIFEST.sha256").write_text(
+        "".join(f"{_sha(out_dir / f)}  {f}\n" for f in files), encoding="utf-8"
+    )
+    return out_dir
+
+
+def render_composite_html(data: dict[str, Any], part_html: dict[str, str]) -> str:
+    style_m = re.search(r"<style>.*?</style>", next(iter(part_html.values()), ""), re.S)
+    style = style_m.group(0) if style_m else ""
+    title, blurb = _STATUS_TEXT.get(data["status"], (data["status"], ""))
+    m = data["metric"]
+    rh = data.get("report_hop")
+    rows = "".join(
+        f"<tr><td>{html.escape(role)}</td><td><code>{html.escape(p['metric'])}</code></td>"
+        f"<td class='num'>{html.escape(str(p['value']))}</td><td>{html.escape(p['status'].replace('_', ' '))}</td>"
+        f"<td><a href='{role}/passport.html'>open the {role} passport</a></td></tr>"
+        for role, p in data["parts"].items()
+    )
+    report = ""
+    if rh:
+        report = (
+            f"<p>On the report: <b>{html.escape(str(rh['target_value']))}</b> "
+            f"(<code>{html.escape(rh['produced_by'] or '')}</code>) · recomputed "
+            f"<b>{html.escape(str(rh['recomputed_value']))}</b> · <b>{html.escape(rh['status'])}</b></p>"
+            + "".join(f"<p class='muted'>{html.escape(f['message'])}</p>" for f in rh["findings"])
+        )
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Passport · {html.escape(m["label"] or m["name"])}</title>
+{style}</head><body><main>
+<p class="muted">Number Passport · {html.escape(data["project"])} · {html.escape(data["generated_at"])}</p>
+<h1>{html.escape(m["label"] or m["name"])}</h1>
+<p><b>{html.escape(title)}</b>. {html.escape(blurb)}</p>
+<p>Value <b>{html.escape(str(data["value"]))}</b> = <code>{html.escape(data["formula"])}</code>. An average or a
+ratio is not additive, so each part is traced and reconciled on its own; the figure is then re-derived from the
+two reconciled totals.</p>
+{report}
+<div class="scroll"><table><thead><tr><th>Part</th><th>Metric</th><th class="num">Total</th><th>Status</th><th></th>
+</tr></thead><tbody>{rows}</tbody></table></div>
+<footer>number-passport {html.escape(data["tool"]["version"])} · passport format v{data["passport_version"]}</footer>
+</main></body></html>
+"""
 
 
 def render_replay(data: dict[str, Any]) -> str:
@@ -87,6 +152,16 @@ def verify_pack(pack: Path, project_root: Path | None, connector: Connector | No
             res.manifest_ok = False
             res.notes.append(f"{name.strip()} was modified after the pack was generated")
     data = json.loads((pack / "passport.json").read_text(encoding="utf-8"))
+    if data.get("composite"):
+        for role in data.get("parts", {}):
+            sub = verify_pack(pack / role, project_root, connector)
+            res.manifest_ok = res.manifest_ok and sub.manifest_ok
+            res.code_changes += [f"{role}: {c}" for c in sub.code_changes]
+            res.query_mismatches += [f"{role}: {q}" for q in sub.query_mismatches]
+            res.queries_checked += sub.queries_checked
+            res.notes += [f"{role}: {n}" for n in sub.notes]
+        res.ok = res.manifest_ok and not res.code_changes and not res.query_mismatches
+        return res
 
     if project_root is not None:
         for rel, digest in data.get("code_files", {}).items():

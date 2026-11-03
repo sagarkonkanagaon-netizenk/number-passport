@@ -16,7 +16,7 @@ from .guard import Guard
 from .model import Metric
 from .project import load_project
 from .reconcile import HopAnalyzer, Tolerance
-from .trace import Passport, TraceError, Tracer
+from .trace import CompositePassport, Passport, TraceError, Tracer
 
 
 @contextmanager
@@ -68,17 +68,37 @@ def trace(
     where: str | None = None,
     out: str | Path | None = None,
     offline: bool = False,
-) -> tuple[Passport, Path]:
+) -> tuple[Passport | CompositePassport, Path]:
     with open_project(path, offline) as (cfg, conn):
         m = resolve_metric(cfg, metric, table, column, agg, where)
-        passport = Tracer(cfg, conn).trace(m)
+        passport = Tracer(cfg, conn).run(m)
         target = Path(out) if out else pack_dir(cfg, m)
         write_pack(passport, target)
         return passport, target
 
 
-def summary(passport: Passport, pack: Path | None = None) -> dict[str, Any]:
+def summary(passport: Passport | CompositePassport, pack: Path | None = None) -> dict[str, Any]:
     """Compact, model-friendly digest of a passport (the full detail lives in the pack)."""
+    if isinstance(passport, CompositePassport):
+        d = passport.to_dict()
+        rh = d["report_hop"]
+        return {
+            "metric": d["metric"],
+            "status": d["status"],
+            "value": d["value"],
+            "formula": d["formula"],
+            "report": None
+            if rh is None
+            else {
+                "value": rh["target_value"],
+                "where": rh["produced_by"],
+                "status": rh["status"],
+                "findings": [f"{f['severity'].upper()}: {f['message']}" for f in rh["findings"]],
+            },
+            "parts": {role: summary(p, pack / role if pack else None) for role, p in passport.parts.items()},
+            "evidence_pack": str(pack) if pack else None,
+            "html": str(pack / "passport.html") if pack else None,
+        }
     d = passport.to_dict()
     hops = []
     for h in ([d["report_hop"]] if d["report_hop"] else []) + d["hops"]:
