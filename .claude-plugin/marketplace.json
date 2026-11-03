@@ -1,0 +1,18 @@
+{
+  "name": "number-passport",
+  "owner": {
+    "name": "Sagar Konkanagaon",
+    "url": "https://github.com/sagarkonkanagaon-netizenk"
+  },
+  "metadata": {
+    "description": "Number Passport: prove where a reported number comes from."
+  },
+  "plugins": [
+    {
+      "name": "number-passport",
+      "source": "./",
+      "description": "MCP server and skill that trace report figures to source rows and reconcile every hop.",
+      "category": "data"
+    }
+  ]
+}

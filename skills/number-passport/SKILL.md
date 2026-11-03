@@ -1,6 +1,6 @@
 ---
 name: number-passport
-description: Trace a number on a risk, finance or regulatory report back to its source rows through the real pipeline code (SQL, dbt, PySpark, Airflow), reconcile every hop with file:line explanations, and produce an auditor-ready evidence pack. Use when someone asks where a reported number comes from, why two numbers differ, whether a report figure can be trusted, or needs BCBS 239 / SOX lineage evidence.
+description: Trace a number on a risk, finance or regulatory report back to its source rows through the real pipeline code (SQL scripts and stored procedures, dbt, PySpark, SAS, Informatica PowerCenter, warehouse views, Airflow), reconcile every hop with file:line explanations, and produce an auditor-ready evidence pack. Use when someone asks where a reported number comes from, why two numbers differ, whether a report figure can be trusted, or needs BCBS 239 / SOX lineage evidence.
 ---
 
 # Number Passport
@@ -35,7 +35,8 @@ CLI equivalents: `passport doctor`, `passport metrics`, `passport lineage <table
 2. **Run `passport_doctor` once.** If anything fails, fix that first and explain the fix in one line. A
    failed read-only probe means the database login can write: stop and ask for a read-only login.
 3. **Pick the number.** Prefer a configured metric. For an ad-hoc number, pass `table`, `column`, `agg`
-   (`sum` or `count`) and an optional SQL `where`.
+   (`sum`, `count` or `avg`) and an optional SQL `where`. Ratios (capital ratios, coverage, densities) are
+   configured in `passport.yml` with `agg: ratio`, a `numerator` and a `denominator`.
 4. **Trace it** with `trace_number`. Use `offline=true` when there is no database access; that gives
    lineage only and the status says so.
 5. **Report the result** in this order:
@@ -62,7 +63,12 @@ Rules that do not bend:
   the likely causes the finding gives (late data, manual adjustment, code changed since the load).
 - `table_code_mismatch` means the table no longer equals what its code produces now: the data changed after
   the load, or the code changed. Say both are possible unless the finding narrows it.
-- Treat models marked `opaque` (Jinja macros, untranslatable PySpark) as unverified hops, and say so.
+- Treat models marked `opaque` (Jinja macros, untranslatable PySpark, SAS RETAIN/DO loops, Informatica
+  Java transformations, MERGE upserts, dynamic SQL) as unverified hops, and say so.
+- An average or a ratio has a `value`, a `formula` and two `parts`. Report the value, then each part's
+  status. The figure is only as good as its weakest part: if either part has gaps, so does the ratio.
+- `parse_issues` list code that could not be read (a statement, a macro call, dynamic SQL). Mention them
+  when they touch the tables in the trace.
 - Quote numbers as the engine formats them. Do not convert currencies.
 
 ## Privacy
@@ -80,7 +86,14 @@ dimension, the data owner must set `privacy.mode: allow_dimensions` and list tha
 pip install "number-passport[mcp]"          # add [postgres] or [sqlalchemy] for those warehouses
 ```
 
-**Claude Code**
+**Claude Code** (plugin: the MCP server and this skill together; needs `uv`)
+
+```
+/plugin marketplace add sagarkonkanagaon-netizenk/number-passport
+/plugin install number-passport@number-passport
+```
+
+Then start Claude Code in the folder that holds `passport.yml`. Without the plugin:
 
 ```bash
 claude mcp add number-passport -- passport mcp --project /path/to/project

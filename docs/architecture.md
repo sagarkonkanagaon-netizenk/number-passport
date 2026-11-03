@@ -9,7 +9,7 @@ flowchart LR
   subgraph Frontends
     CLI["passport CLI<br/>cli.py"]
     MCP["MCP server<br/>mcp_server.py"]
-    SKILL["Agent skill<br/>skill/SKILL.md"]
+    SKILL["Agent skill<br/>skills/number-passport/SKILL.md"]
   end
   SKILL -. tells the assistant how to use .-> MCP
   CLI --> SVC
