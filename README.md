@@ -174,6 +174,7 @@ The full threat model, guard rules and a reviewer summary are in [docs/security.
 | [Security and privacy model](docs/security.md) | Security, data protection and model risk reviewers. |
 | [Architecture](docs/architecture.md) | Contributors: modules, design decisions and how to extend. |
 | [FAQ](docs/faq.md) | Comparisons with lineage and data-diff tools, regulations, limits. |
+| [Releasing](docs/releasing.md) | Maintainers: the automated PyPI and GitHub release pipeline. |
 
 ## Configuration
 
