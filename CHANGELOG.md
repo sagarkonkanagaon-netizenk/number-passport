@@ -6,13 +6,6 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Added
-
-- Animated Trace N logo, animated README banner, social preview and detailed documentation: how it works, architecture, configuration reference,
-  security model and FAQ.
-- Governance files: NOTICE, SECURITY, CONTRIBUTING, Code of Conduct, SUPPORT, issue and pull request
-  templates, CODEOWNERS and Dependabot.
-
 ## [0.1.0] - 2026-11-03
 
 ### Added
@@ -27,6 +20,11 @@ All notable changes to this project are documented here. The format follows
 - Evidence packs (HTML, JSON, replay SQL, SHA-256 manifest) and `passport verify`.
 - `passport doctor`, the `passport` CLI, an MCP server and an agent skill.
 - Sample bank pipeline and CI on Python 3.10 to 3.13 with real PostgreSQL and real Spark.
+- Animated Trace N logo, animated README banner, social preview and detailed documentation: how it
+  works, architecture, configuration reference, security model and FAQ.
+- Governance files: NOTICE, SECURITY, CONTRIBUTING, Code of Conduct, SUPPORT, issue and pull request
+  templates, CODEOWNERS and Dependabot.
+- Release pipeline: tagging `vX.Y.Z` publishes to PyPI (trusted publishing) and creates the GitHub release.
 
 [Unreleased]: https://github.com/sagarkonkanagaon-netizenk/number-passport/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/sagarkonkanagaon-netizenk/number-passport/releases/tag/v0.1.0
