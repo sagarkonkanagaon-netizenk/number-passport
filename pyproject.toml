@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "number-passport"
+version = "0.1.0"
+description = "Trace any number on a risk or regulatory report back to its source rows, reconcile every hop, and produce an auditor-ready evidence pack (BCBS 239)."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [{ name = "Sagar Konkanagaon" }]
+keywords = ["bcbs239", "data-lineage", "reconciliation", "regulatory-reporting", "mcp", "agent-skill", "banking"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Topic :: Database",
+  "Topic :: Office/Business :: Financial",
+  "Programming Language :: Python :: 3",
+]
+dependencies = [
+  "sqlglot>=27",
+  "duckdb>=1.1",
+  "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=2"]
+postgres = ["psycopg[binary]>=3.1"]
+sqlalchemy = ["sqlalchemy>=2"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "types-PyYAML", "mcp>=2", "psycopg[binary]>=3.1"]
+
+[project.scripts]
+passport = "number_passport.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/sagarkonkanagaon-netizenk/number-passport"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/number_passport"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101", "S608", "S603", "S607"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+"examples/*" = ["S", "E501"]
+"src/number_passport/evidence.py" = ["E501"]  # HTML/CSS template
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# sqlglot's type hints change between releases (Expression vs Expr); treat it as untyped
+module = ["sqlglot", "sqlglot.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
