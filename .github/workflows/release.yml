@@ -1,9 +1,13 @@
 name: Release
 
-# Push a tag like v0.1.0 to publish. The tag must match the version in pyproject.toml.
+# Two ways to publish, both from main:
+#   1. push a tag like v0.1.0 (it must match the version in pyproject.toml), or
+#   2. run this workflow by hand (Actions > Release > Run workflow): it releases the version in
+#      pyproject.toml and the GitHub release step creates the matching tag.
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,15 +16,29 @@ jobs:
   build:
     name: Build and check
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # all tags, to refuse re-releasing a version
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Tag must match the package version
+      - name: Work out the release tag
+        id: version
         run: |
           version=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            test "$tag" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+          else
+            test "$GITHUB_REF" = "refs/heads/main" || { echo "manual releases run from main only, not $GITHUB_REF"; exit 1; }
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "$tag already exists: bump the version in pyproject.toml first"; exit 1
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - run: pip install build twine
       - run: python -m build
       - run: twine check --strict dist/*
@@ -51,7 +69,7 @@ jobs:
 
   github-release:
     name: GitHub release
-    needs: pypi
+    needs: [build, pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -62,10 +80,14 @@ jobs:
           name: dist
           path: dist/
       - name: Release notes from CHANGELOG.md
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
-          v="${GITHUB_REF_NAME#v}"
+          v="${TAG#v}"
           awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} /^\[/ {next} on' CHANGELOG.md > notes.md
           test -s notes.md || { echo "no CHANGELOG entry for $v"; exit 1; }
-      - env:
+      - name: Create the release (and the tag, for a manual run)
+        env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Number Passport $GITHUB_REF_NAME" --notes-file notes.md
+          TAG: ${{ needs.build.outputs.tag }}
+        run: gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "Number Passport $TAG" --notes-file notes.md
