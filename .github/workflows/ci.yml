@@ -18,7 +18,7 @@ jobs:
     name: Lint and types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -50,7 +50,7 @@ jobs:
       NP_TEST_POSTGRES_URL: postgresql://np_owner:owner@127.0.0.1:5432/bank
       NP_TEST_POSTGRES_READER_URL: postgresql://np_reader:reader@127.0.0.1:5432/bank
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -80,7 +80,7 @@ jobs:
       NP_TEST_POSTGRES_READER_URL: postgresql://np_reader:reader@127.0.0.1:5432/bank
       NP_TEST_NO_SKIP: "1" # every test must run here: no Postgres, Java or Spark means red, not skipped
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -111,7 +111,7 @@ jobs:
     name: Build and install the wheel
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
