@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- Logo, social preview and detailed documentation: how it works, architecture, configuration reference,
+- Animated Trace N logo, animated README banner, social preview and detailed documentation: how it works, architecture, configuration reference,
   security model and FAQ.
 - Governance files: NOTICE, SECURITY, CONTRIBUTING, Code of Conduct, SUPPORT, issue and pull request
   templates, CODEOWNERS and Dependabot.

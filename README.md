@@ -1,11 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sagarkonkanagaon-netizenk/number-passport/main/docs/assets/logo-dark.svg">
-  <img alt="Number Passport" src="https://raw.githubusercontent.com/sagarkonkanagaon-netizenk/number-passport/main/docs/assets/logo-light.svg" width="520">
-</picture>
-
-### Trace any number on a risk or regulatory report back to its source rows, through your real pipeline code, and prove every step with evidence an auditor can re-check.
+<img alt="Number Passport: trace any reported number to its source rows, reconcile every hop, and prove it" src="https://raw.githubusercontent.com/sagarkonkanagaon-netizenk/number-passport/main/docs/assets/banner.svg" width="100%">
 
 [![CI](https://github.com/sagarkonkanagaon-netizenk/number-passport/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sagarkonkanagaon-netizenk/number-passport/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-1F4A73.svg)](LICENSE)

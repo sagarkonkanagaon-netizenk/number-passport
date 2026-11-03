@@ -1,18 +1,107 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-labelledby="np-title">
+  <title id="np-title">Number Passport</title>
+  <style>
+    .np-float { animation: np-float 6s ease-in-out infinite; transform-origin: 64px 64px; }
+    .np-pulse { stroke-dasharray: 26 400; stroke-dashoffset: 26; animation: np-run 4.2s cubic-bezier(.55,.05,.35,1) infinite; }
+    .np-glow  { animation: np-breathe 4.2s ease-in-out infinite; }
+    .np-n1 { animation: np-n1 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-n2 { animation: np-n2 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-n3 { animation: np-n3 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-seal { animation: np-seal 4.2s cubic-bezier(.3,1.6,.5,1) infinite; transform-box: fill-box; transform-origin: center; }
+    .np-ring { animation: np-ring 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-sheen { animation: np-sheen 6s ease-in-out infinite; }
+    @keyframes np-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-2.2px) } }
+    @keyframes np-run { 0% { stroke-dashoffset: 26 } 62% { stroke-dashoffset: -191 } 100% { stroke-dashoffset: -191 } }
+    @keyframes np-breathe { 0%,100% { opacity: .45 } 66% { opacity: .95 } }
+    @keyframes np-n1 { 0%,4% { transform: scale(1.35); filter: brightness(1.7) } 20%,100% { transform: scale(1); filter: none } }
+    @keyframes np-n2 { 0%,16% { transform: scale(1) } 22% { transform: scale(1.4); filter: brightness(1.7) } 36%,100% { transform: scale(1); filter: none } }
+    @keyframes np-n3 { 0%,40% { transform: scale(1) } 46% { transform: scale(1.4); filter: brightness(1.7) } 60%,100% { transform: scale(1); filter: none } }
+    @keyframes np-seal { 0%,58% { transform: scale(1) } 66% { transform: scale(1.28) } 74%,100% { transform: scale(1) } }
+    @keyframes np-ring { 0%,60% { transform: scale(1); opacity: 0 } 64% { opacity: .9 } 90%,100% { transform: scale(2.3); opacity: 0 } }
+    @keyframes np-sheen { 0%,55% { transform: translateX(-170px) } 85%,100% { transform: translateX(170px) } }
+    @media (prefers-reduced-motion: reduce) {
+      .np-float, .np-pulse, .np-glow, .np-n1, .np-n2, .np-n3, .np-seal, .np-ring, .np-sheen { animation: none; }
+      .np-pulse { stroke-dashoffset: -191; }
+    }
+  </style>
   <defs>
-    <radialGradient id="glow" cx="0.22" cy="0.5" r="0.6"><stop offset="0" stop-color="#16324F"/><stop offset="1" stop-color="#0A1422"/></radialGradient>
+    <linearGradient id="np-tile" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#1B3554"/>
+      <stop offset="0.55" stop-color="#0F1F33"/>
+      <stop offset="1" stop-color="#08111D"/>
+    </linearGradient>
+    <linearGradient id="np-rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7FB2FF" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#7FB2FF" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#3FD0A4" stop-opacity=".25"/>
+    </linearGradient>
+    <linearGradient id="np-body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8CF7D5"/>
+      <stop offset="0.5" stop-color="#3FD0A4"/>
+      <stop offset="1" stop-color="#1FA884"/>
+    </linearGradient>
+    <radialGradient id="np-node" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#E4EEFF"/>
+      <stop offset="0.45" stop-color="#8DB9FF"/>
+      <stop offset="1" stop-color="#3E6FC2"/>
+    </radialGradient>
+    <radialGradient id="np-sealg" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#C8FFEE"/>
+      <stop offset="0.5" stop-color="#3FD0A4"/>
+      <stop offset="1" stop-color="#14876A"/>
+    </radialGradient>
+    <linearGradient id="np-sheen-g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="np-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="np-blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="np-shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".45"/>
+    </filter>
+    <clipPath id="np-clip"><rect x="0" y="0" width="128" height="128" rx="28"/></clipPath>
+  </defs>
+  <defs>
+    <radialGradient id="bg" cx="0.22" cy="0.5" r="0.7"><stop offset="0" stop-color="#17375A"/><stop offset="1" stop-color="#070F1A"/></radialGradient>
     <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.4" fill="#7FB2FF" fill-opacity=".10"/></pattern>
   </defs>
-  <rect width="1280" height="640" fill="url(#glow)"/>
+  <rect width="1280" height="640" fill="url(#bg)"/>
   <rect width="1280" height="640" fill="url(#dots)"/>
-  <g transform="translate(110 176) scale(2.25)">
-    <rect width="128" height="128" rx="28" fill="#0E1B2C"/>
-    <path d="M36 92 V36 L92 92 V36" fill="none" stroke="#3FD0A4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="36" cy="92" r="9" fill="#0E1B2C" stroke="#7FB2FF" stroke-width="5"/>
-    <circle cx="36" cy="36" r="7" fill="#7FB2FF"/>
-    <circle cx="92" cy="92" r="7" fill="#7FB2FF"/>
-    <circle cx="92" cy="36" r="12" fill="#3FD0A4"/>
-    <path d="M86.5 36.5 L90.5 40.5 L98 32.5" fill="none" stroke="#0E1B2C" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="254" cy="320" r="190" fill="#3FD0A4" opacity=".07" filter="url(#np-blur)"/>
+  <g transform="translate(110 170) scale(2.25)">
+  <g class="np-float">
+    <g filter="url(#np-shadow)">
+      <rect x="0" y="0" width="128" height="128" rx="28" fill="url(#np-tile)"/>
+    </g>
+    <rect x="0.75" y="0.75" width="126.5" height="126.5" rx="27.3" fill="none" stroke="url(#np-rim)" stroke-width="1.5"/>
+    <g clip-path="url(#np-clip)">
+      <rect class="np-sheen" x="-30" y="-20" width="60" height="170" fill="url(#np-sheen-g)" transform="rotate(18)"/>
+    </g>
+    <!-- glow -->
+    <path class="np-glow" d="M36 92 V36 L92 92 V36" fill="none" stroke="#3FD0A4" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" filter="url(#np-blur)"/>
+    <!-- extrusion (depth) -->
+    <path d="M36 92 V36 L92 92 V36" transform="translate(2.2 3.2)" fill="none" stroke="#0B5C48" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 92 V36 L92 92 V36" transform="translate(1.1 1.6)" fill="none" stroke="#138069" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- body -->
+    <path d="M36 92 V36 L92 92 V36" fill="none" stroke="url(#np-body)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- bevel highlight -->
+    <path d="M36 92 V36 L92 92 V36" transform="translate(-1.3 -1.6)" fill="none" stroke="#E9FFF8" stroke-opacity=".45" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- travelling pulse -->
+    <path class="np-pulse" d="M36 92 V36 L92 92 V36" fill="none" stroke="#B9FFE9" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" filter="url(#np-blur-s)"/>
+    <path class="np-pulse" d="M36 92 V36 L92 92 V36" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- nodes -->
+    <g class="np-n1"><circle cx="36" cy="92" r="9.5" fill="#0F1F33" stroke="url(#np-node)" stroke-width="5.5"/></g>
+    <g class="np-n2"><circle cx="36" cy="36" r="7.5" fill="url(#np-node)"/><circle cx="33.6" cy="33.4" r="2.2" fill="#fff" opacity=".8"/></g>
+    <g class="np-n3"><circle cx="92" cy="92" r="7.5" fill="url(#np-node)"/><circle cx="89.6" cy="89.4" r="2.2" fill="#fff" opacity=".8"/></g>
+    <!-- verified seal -->
+    <circle class="np-ring" cx="92" cy="36" r="12.5" fill="none" stroke="#3FD0A4" stroke-width="2.5"/>
+    <g class="np-seal">
+      <circle cx="93" cy="38" r="12.5" fill="#0B5C48"/>
+      <circle cx="92" cy="36" r="12.5" fill="url(#np-sealg)"/>
+      <path d="M86.3 36.4 L90.5 40.6 L98.2 32.4" fill="none" stroke="#0A1A2A" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
   </g>
   <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
     <text x="470" y="262" font-size="78" font-weight="800" letter-spacing="-2.2" fill="#F0F3F6">Number Passport</text>
