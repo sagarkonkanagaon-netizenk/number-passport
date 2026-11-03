@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -522,7 +523,9 @@ class _Builder:
         kind: str,
         line_offset: int,
         procedure: str | None = None,
+        is_temp: Callable[[str], bool] | None = None,
     ) -> None:
+        self.is_temp = is_temp or (lambda key: key.startswith("#"))
         self.file = file
         self.dialect = dialect
         self.kind = kind
@@ -586,7 +589,7 @@ class _Builder:
             ):
                 q = self._inline_temps(s.expression.copy())
                 key = _key(tbl)
-                if _is_temp_create(s) or key.startswith("#"):
+                if _is_temp_create(s) or self.is_temp(key):
                     self.temps[key] = q
                     return
                 self._set(key, q, st.line, replace=True, how=f"CREATE {kind}")
@@ -606,7 +609,7 @@ class _Builder:
             q.set("into", None)
             q = self._inline_temps(q)
             key = _key(tbl)
-            if key.startswith("#") or into.args.get("temporary"):
+            if self.is_temp(key) or into.args.get("temporary"):
                 self.temps[key] = q
                 return
             self._set(key, q, st.line, replace=True, how="SELECT INTO")
@@ -654,7 +657,7 @@ class _Builder:
                 "columns are matched by name"
             )
         q = self._inline_temps(q)
-        if key.startswith("#") or key in self.temps:
+        if self.is_temp(key) or key in self.temps:
             prev = self.temps.get(key)
             self.temps[key] = (
                 q if prev is None or s.args.get("overwrite") else exp.union(prev, q, distinct=False)
@@ -805,7 +808,7 @@ class _Builder:
     def models(self) -> list[Model]:
         out: list[Model] = []
         for key, t in self.targets.items():
-            if t.query is None or key.startswith("#"):
+            if t.query is None or self.is_temp(key):
                 continue
             notes = list(t.notes)
             if self.procedure:
