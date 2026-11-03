@@ -1,0 +1,16 @@
+name: Question
+description: How do I trace, configure or read something?
+title: "question: "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check [how it works](https://github.com/sagarkonkanagaon-netizenk/number-passport/blob/main/docs/how-it-works.md), the
+        [configuration reference](https://github.com/sagarkonkanagaon-netizenk/number-passport/blob/main/docs/configuration.md) and the [FAQ](https://github.com/sagarkonkanagaon-netizenk/number-passport/blob/main/docs/faq.md) first.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true

@@ -1,0 +1,8 @@
+# Every change is reviewed by the maintainer. Security-sensitive paths are listed explicitly so that
+# extra owners can be added to them later.
+*                                      @sagarkonkanagaon-netizenk
+/src/number_passport/guard.py          @sagarkonkanagaon-netizenk
+/src/number_passport/connectors.py     @sagarkonkanagaon-netizenk
+/src/number_passport/evidence.py       @sagarkonkanagaon-netizenk
+/SECURITY.md                           @sagarkonkanagaon-netizenk
+/docs/security.md                      @sagarkonkanagaon-netizenk

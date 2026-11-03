@@ -35,6 +35,10 @@ passport = "number_passport.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/sagarkonkanagaon-netizenk/number-passport"
+Documentation = "https://github.com/sagarkonkanagaon-netizenk/number-passport/tree/main/docs"
+Changelog = "https://github.com/sagarkonkanagaon-netizenk/number-passport/blob/main/CHANGELOG.md"
+Issues = "https://github.com/sagarkonkanagaon-netizenk/number-passport/issues"
+Security = "https://github.com/sagarkonkanagaon-netizenk/number-passport/security/policy"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/number_passport"]

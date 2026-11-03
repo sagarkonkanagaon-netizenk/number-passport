@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-labelledby="t">
+  <title id="t">Number Passport</title>
+  <defs>
+    <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1F4A73"/>
+      <stop offset="1" stop-color="#0F2740"/>
+    </linearGradient>
+  </defs>
+  <!-- passport booklet -->
+  <rect x="14" y="6" width="84" height="116" rx="12" fill="url(#cover)"/>
+  <rect x="14" y="6" width="10" height="116" rx="5" fill="#0B1E31" opacity=".55"/>
+  <!-- lineage: report -> table -> source -->
+  <path d="M58 26 V46 M58 46 L44 66 M58 46 L72 66" stroke="#8FB4D8" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <circle cx="58" cy="24" r="9" fill="#F4F7FA"/>
+  <circle cx="58" cy="46" r="7" fill="#8FB4D8"/>
+  <circle cx="44" cy="68" r="6" fill="#8FB4D8"/>
+  <circle cx="72" cy="68" r="6" fill="#8FB4D8"/>
+  <rect x="34" y="90" width="30" height="5" rx="2.5" fill="#8FB4D8" opacity=".55"/>
+  <!-- verification stamp -->
+  <circle cx="96" cy="96" r="25" fill="#1F9D63" stroke="#FFFFFF" stroke-width="5"/>
+  <circle cx="96" cy="96" r="17.5" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-dasharray="3 3" opacity=".75"/>
+  <path d="M86 96.5 L93 103.5 L107 89" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
