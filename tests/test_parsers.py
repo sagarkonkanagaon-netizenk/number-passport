@@ -140,3 +140,31 @@ def test_pyspark_untranslatable_is_opaque(snippet: str, needle: str) -> None:
     # the table is still known to be built by this job, but flagged: never a silent wrong translation
     assert m.target == "x.y" and m.upstream == ["a.b"]
     assert any(needle in o for o in m.opaque)
+
+
+def test_pyspark_union_family() -> None:
+    job = """
+eu = spark.table('s.eu').filter(F.col('amt') > 0).select('id', 'amt')
+us = spark.table('s.us').select('id', 'amt')
+apac = spark.table('s.apac').select('id', 'amt', 'fx')
+allx = eu.union(us).unionByName(apac, allowMissingColumns=True)
+allx.write.mode('overwrite').saveAsTable('g.all')
+"""
+    schema = {"s.eu": ["id", "amt"], "s.us": ["id", "amt"], "s.apac": ["id", "amt", "fx"]}
+    [m] = models_from_pyspark(job, "job.py", "duckdb", schema)
+    assert m.upstream == ["s.eu", "s.us", "s.apac"] and m.opaque == []
+    sql = m.sql()
+    assert sql.count("UNION ALL") == 2 and "NULL AS fx" in sql
+    an = HopAnalyzer(m, Guard(lambda s: [], "duckdb"), schema, Tolerance())
+    hops, _ = an.upstream_columns("amt")
+    assert {h.table for h in hops} == {"s.eu", "s.us", "s.apac"}
+
+
+def test_pyspark_union_by_name_mismatch_is_opaque() -> None:
+    job = """
+a = spark.table('s.a').select('id', 'amt')
+b = spark.table('s.b').select('id', 'fee')
+a.unionByName(b).write.saveAsTable('g.x')
+"""
+    [m] = models_from_pyspark(job, "job.py", "duckdb", None)
+    assert any("different columns" in o for o in m.opaque)

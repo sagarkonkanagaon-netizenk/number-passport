@@ -65,6 +65,17 @@ _JOIN_HOW = {
 }
 
 
+_SET_OPS = {
+    "union": "UNION ALL",  # Spark's union keeps duplicates
+    "unionAll": "UNION ALL",
+    "unionByName": "UNION ALL",
+    "intersect": "INTERSECT",
+    "intersectAll": "INTERSECT ALL",
+    "subtract": "EXCEPT",
+    "exceptAll": "EXCEPT ALL",
+}
+
+
 class Opaque(Exception):
     pass
 
@@ -366,9 +377,62 @@ class _JobVisitor:
             sel_sql = ", ".join([*(_ident(k) for k in keys), *aggs])
             out_cols = None if "?" in names else [*(k.lower() for k in keys), *names]
             return base.add(f"SELECT {sel_sql} FROM {{prev}}{group}", line, out_cols)
+        if method in _SET_OPS:
+            return self._set_op(prev, method, a, kw, line)
         if method in {"alias", "cache", "persist", "repartition", "coalesce", "hint", "checkpoint"}:
             return prev
         raise Opaque(f"line {line}: DataFrame method `{method}` is not supported")
+
+    def _set_op(
+        self, prev: Frame, method: str, a: list[ast.expr], kw: dict[str, ast.expr], line: int
+    ) -> Frame:
+        """union / unionAll / unionByName / intersect / subtract / exceptAll as one SQL set operation."""
+        if not a:
+            raise Opaque(f"line {line}: {method}() needs another DataFrame")
+        other = self.frame(a[0])
+        op = _SET_OPS[method]
+        right = _inline(other)
+        left_cols = prev.cols
+        cols: list[str] | None = prev.cols
+        left_sql = "SELECT * FROM {prev}"
+        right_cols = "*"
+        if left_cols is not None:  # explicit names keep column-level lineage working through the union
+            left_sql = "SELECT " + ", ".join(_ident(c) for c in left_cols) + " FROM {prev}"
+        if other.cols is not None:
+            right_cols = ", ".join(_ident(c) for c in other.cols)
+        if method == "unionByName":
+            allow = kw.get("allowMissingColumns")
+            allow_missing = isinstance(allow, ast.Constant) and allow.value is True
+            if left_cols is None or other.cols is None:
+                self.opaque_note(
+                    f"line {line}: unionByName on DataFrames with unknown columns is matched by position "
+                    "(connect a database so the schema is known)"
+                )
+                cols = None
+            else:
+                extra = [c for c in other.cols if c not in left_cols]
+                missing = [c for c in left_cols if c not in other.cols]
+                if (extra or missing) and not allow_missing:
+                    raise Opaque(f"line {line}: unionByName with different columns {sorted(extra + missing)}")
+                cols = [*left_cols, *extra]
+                left_sql = (
+                    "SELECT "
+                    + ", ".join([*(_ident(c) for c in left_cols), *(f"NULL AS {_ident(c)}" for c in extra)])
+                    + " FROM {prev}"
+                )
+                right_sel = ", ".join(_ident(c) if c in other.cols else f"NULL AS {_ident(c)}" for c in cols)
+                right = f"SELECT {right_sel} FROM ({right}) AS _u{line}"
+                right_cols = ", ".join(_ident(c) for c in cols)
+        elif left_cols is not None and other.cols is not None and len(left_cols) != len(other.cols):
+            raise Opaque(f"line {line}: {method}() of DataFrames with different column counts")
+        elif method in {"union", "unionAll"} and left_cols and other.cols and left_cols != other.cols:
+            self.note(
+                f"line {line}: {method}() matches columns by position and the column names differ "
+                f"({', '.join(left_cols)} vs {', '.join(other.cols)}); the result keeps the left names"
+            )
+        if method in {"subtract", "exceptAll", "intersect", "intersectAll"}:
+            self.note(f"line {line}: {method}() removes rows; its effect is part of this hop's total")
+        return prev.add(f"{left_sql} {op} SELECT {right_cols} FROM ({right}) AS _o{line}", line, cols)
 
     def opaque_note(self, msg: str) -> None:
         if msg not in self.opaque:
