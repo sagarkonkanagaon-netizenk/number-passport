@@ -18,7 +18,7 @@ jobs:
     name: Lint and types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -50,7 +50,7 @@ jobs:
       NP_TEST_POSTGRES_URL: postgresql://np_owner:owner@127.0.0.1:5432/bank
       NP_TEST_POSTGRES_READER_URL: postgresql://np_reader:reader@127.0.0.1:5432/bank
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
@@ -80,8 +80,8 @@ jobs:
       NP_TEST_POSTGRES_READER_URL: postgresql://np_reader:reader@127.0.0.1:5432/bank
       NP_TEST_NO_SKIP: "1" # every test must run here: no Postgres, Java or Spark means red, not skipped
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -102,7 +102,7 @@ jobs:
           set +e; passport trace total_rwa --strict --out passports/total_rwa; code=$?; set -e
           test "$code" -eq 2 || { echo "expected exit 2 (gaps found), got $code"; exit 1; }
           passport verify passports/total_rwa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sample-evidence-pack
           path: examples/bank/passports/total_rwa
@@ -111,7 +111,7 @@ jobs:
     name: Build and install the wheel
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -124,3 +124,25 @@ jobs:
           /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp]"
           /tmp/wheel/bin/passport --version
           cd /tmp && /tmp/wheel/bin/passport init --project /tmp/np && test -f /tmp/np/passport.yml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  release-dry-run:
+    name: Release dry run (artifact hand-off and notes)
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: The release jobs would receive the wheel and sdist
+        run: ls dist/*.whl dist/*.tar.gz
+      - name: The release notes for the current version exist in CHANGELOG.md
+        run: |
+          v=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} /^\[/ {next} on' CHANGELOG.md > notes.md
+          test -s notes.md && cat notes.md
