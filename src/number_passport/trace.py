@@ -16,7 +16,7 @@ from .config import Config
 from .connectors import Connector, ConnectorError
 from .guard import Guard, GuardViolation
 from .model import Finding, Hop, Metric, Severity
-from .project import Project, load_project
+from .project import Project, add_warehouse_views, load_project
 from .quality import check_table
 from .reconcile import HopAnalyzer, NextHop, Tolerance, fmt, money, to_decimal
 
@@ -42,6 +42,7 @@ class Passport:
     code_files: dict[str, str]
     audit: list[dict[str, Any]] = field(default_factory=list)
     parse_issues: list[str] = field(default_factory=list)
+    warehouse_views: dict[str, str] = field(default_factory=dict)
     tool_version: str = __version__
 
     @property
@@ -91,6 +92,7 @@ class Passport:
             "edges": [list(e) for e in self.edges],
             "code_files": self.code_files,
             "parse_issues": self.parse_issues,
+            "warehouse_views": self.warehouse_views,
             "audit": self.audit,
         }
 
@@ -133,11 +135,17 @@ class Tracer:
             self.guard = Guard(connector.query, connector.dialect, cfg.privacy_mode, cfg.safe_dimensions)
         self.project: Project = load_project(cfg)
         if connector is not None:
+            self._add_views(self.project)
             schema = connector.schema(self.project.tables())
             # reload PySpark jobs now that column lists are known (exact withColumn/drop translation)
             self.project = load_project(cfg, schema)
+            self._add_views(self.project)
         self.schema = schema
         self.tol = Tolerance(cfg.tolerance_abs, cfg.tolerance_rel)
+
+    def _add_views(self, project: Project, extra: list[str] | None = None) -> None:
+        if self.conn is not None and self.cfg.read_views:
+            add_warehouse_views(project, self.conn, extra or [])
 
     def _as_of(self) -> datetime | None:
         if not self.cfg.as_of:
@@ -147,6 +155,12 @@ class Tracer:
 
     def trace(self, metric: Metric) -> Passport:
         p = self.project
+        if p.model_for(metric.table) is None and self.conn is not None:
+            before = set(p.models)
+            self._add_views(p, [metric.table])
+            added = [t for t in p.models if t not in before]
+            if added:
+                self.schema.update(self.conn.schema([t for t in p.tables() if t not in self.schema]))
         if p.model_for(metric.table) is None and metric.table not in p.tables():
             raise TraceError(f"table {metric.table} is not produced or read by any code in this project")
         code_only = self.guard is None
@@ -239,6 +253,7 @@ class Tracer:
             code_files=code_files,
             audit=[e.to_dict() for e in self.guard.log] if self.guard else [],
             parse_issues=[str(i) for i in p.issues],
+            warehouse_views={t: p.warehouse_views[t] for h in hops if (t := h.target) in p.warehouse_views},
         )
 
     def _source_hop(self, nh: NextHop, index: int, code_only: bool, agg: str) -> Hop:

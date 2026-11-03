@@ -204,3 +204,53 @@ def test_script_reconciles_end_to_end(tmp_path: Path) -> None:
     assert any("COALESCE" in w and "900" in w for w in whats)  # the DELETE, measured as a filter
     src = next(h for h in d["hops"] if h["target"] == "src.loans")
     assert src["target_value"] == "1409.00"
+
+
+def test_trace_continues_through_warehouse_views(tmp_path: Path) -> None:
+    """A view that lives only in the database (no file builds it) is read from the catalog."""
+    (tmp_path / "sql").mkdir()
+    (tmp_path / "sql" / "gold.sql").write_text(
+        "CREATE TABLE gold.total AS\n"
+        "SELECT region, SUM(amount) AS amount FROM rpt.live_loans GROUP BY region;\n"
+    )
+    (tmp_path / "passport.yml").write_text(
+        "project: t\ndialect: duckdb\ncode:\n  sql: sql\nconnection: duckdb:///w.duckdb\n"
+        "metrics:\n  total:\n    table: gold.total\n    column: amount\n"
+        "  direct:\n    table: rpt.eu_loans\n    column: amount\n"
+    )
+    con = duckdb.connect(str(tmp_path / "w.duckdb"))
+    con.execute("CREATE SCHEMA src; CREATE SCHEMA rpt; CREATE SCHEMA gold;")
+    con.execute(
+        "CREATE TABLE src.loans AS SELECT * FROM (VALUES (1, 100, 'EU', 'ok'), (2, 50, 'US', 'void')) "
+        "AS t(id, amount, region, status)"
+    )
+    con.execute("CREATE VIEW rpt.live_loans AS SELECT id, amount, region FROM src.loans WHERE status = 'ok'")
+    con.execute("CREATE VIEW rpt.eu_loans AS SELECT id, amount FROM rpt.live_loans WHERE region = 'EU'")
+    con.execute(
+        "CREATE TABLE gold.total AS SELECT region, SUM(amount) AS amount FROM rpt.live_loans GROUP BY 1"
+    )
+    con.close()
+
+    cfg = load_config(tmp_path)
+    conn = connect(cfg.connection_url)
+    try:
+        d = Tracer(cfg, conn).trace(cfg.metrics["total"]).to_dict()
+        direct = Tracer(cfg, conn).trace(cfg.metrics["direct"]).to_dict()
+    finally:
+        conn.close()
+    targets = [h["target"] for h in d["hops"]]
+    assert targets == ["gold.total", "rpt.live_loans", "src.loans"]
+    view = d["hops"][1]
+    assert view["model_kind"] == "warehouse view" and view["status"] == "reconciled"
+    assert any("status = 'ok'" in s["description"] for s in view["steps"])
+    assert list(d["warehouse_views"]) == ["rpt.live_loans"]
+    # a metric on a view that no code mentions at all
+    assert [h["target"] for h in direct["hops"]] == ["rpt.eu_loans", "rpt.live_loans", "src.loans"]
+
+    cfg.read_views = False
+    conn = connect(cfg.connection_url)
+    try:
+        off = Tracer(cfg, conn).trace(cfg.metrics["total"]).to_dict()
+    finally:
+        conn.close()
+    assert off["hops"][1]["model_kind"] == "source"

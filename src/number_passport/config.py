@@ -70,6 +70,7 @@ class Config:
     metrics: dict[str, Metric]
     output_dir: Path
     as_of: str | None = None
+    read_views: bool = True  # read view definitions from the warehouse catalog to trace through them
 
     def table(self, name: str) -> TableConfig:
         return self.tables.get(name.lower(), TableConfig())
@@ -126,6 +127,7 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
 
     conn = raw.get("connection") or {}
     url = conn.get("url") if isinstance(conn, dict) else conn
+    read_views = bool(conn.get("read_views", True)) if isinstance(conn, dict) else True
     if url is not None:
         url = _expand_env(str(url))
         if url.startswith(("duckdb:///", "files:///")):
@@ -192,4 +194,5 @@ def parse_config(raw: dict[str, Any], root: Path) -> Config:
         metrics=metrics,
         output_dir=(root / raw.get("output_dir", "passports")).resolve(),
         as_of=raw.get("as_of"),
+        read_views=read_views,
     )

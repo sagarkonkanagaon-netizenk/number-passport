@@ -103,6 +103,14 @@ def verify_pack(pack: Path, project_root: Path | None, connector: Connector | No
             res.notes.append(
                 f"connection dialect {connector.dialect} differs from the pack's {data.get('dialect')}"
             )
+        views = data.get("warehouse_views") or {}
+        if views:
+            now = connector.views(list(views))
+            for name, digest in views.items():
+                if name not in now:
+                    res.code_changes.append(f"warehouse view {name}: no longer exists")
+                elif hashlib.sha256(now[name].encode()).hexdigest() != digest:
+                    res.code_changes.append(f"warehouse view {name}: definition changed since the passport")
         for q in data.get("audit", []):
             try:
                 check_query(q["sql"], connector.dialect, "allow_dimensions", set())
@@ -360,7 +368,10 @@ def render_html(data: dict[str, Any]) -> str:
     )
     files_rows = "".join(
         f"<tr><td><code>{html.escape(k)}</code></td><td><code class='hash'>{v[:16]}…</code></td></tr>"
-        for k, v in data["code_files"].items()
+        for k, v in [
+            *data["code_files"].items(),
+            *((f"warehouse view {n}", d) for n, d in (data.get("warehouse_views") or {}).items()),
+        ]
     )
     where = f" where <code>{html.escape(m['where'])}</code>" if m.get("where") else ""
     return f"""<!doctype html>
@@ -459,7 +470,7 @@ footer {{ color:var(--muted); font-size:12px; margin-top:40px }}
 <code>passport verify &lt;this folder&gt;</code> to re-execute them and compare.</p>
 <div class="scroll"><table><thead><tr><th class="num">#</th><th>Purpose</th><th>Result</th><th class="num">ms</th></tr></thead>
 <tbody>{audit_rows}</tbody></table></div></details>
-<details><summary>Code fingerprints ({len(data["code_files"])} files)</summary>
+<details><summary>Code fingerprints ({len(data["code_files"]) + len(data.get("warehouse_views") or {})} files)</summary>
 <p class="muted">SHA-256 of every file the trace read. <code>passport verify</code> flags any file changed since.</p>
 <div class="scroll"><table><tbody>{files_rows}</tbody></table></div></details>
 

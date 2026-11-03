@@ -46,6 +46,14 @@ class Connector(ABC):
     def close(self) -> None:  # noqa: B027 - optional hook
         pass
 
+    def views(self, tables: list[str]) -> dict[str, str]:
+        """SQL definitions of those ``tables`` that are views in the warehouse (a catalog read, no data).
+
+        Pipelines often keep part of their logic in views that live only in the database; reading their
+        definitions lets the trace continue through them.
+        """
+        return {}
+
     def schema(self, tables: list[str]) -> dict[str, list[str]]:
         out: dict[str, list[str]] = {}
         for t in tables:
@@ -97,6 +105,16 @@ class DuckDBConnector(Connector):
             params.append(schema.lower())
         sql += " ORDER BY ordinal_position"
         return [r[0].lower() for r in self.con.execute(sql, params).fetchall()]
+
+    def views(self, tables: list[str]) -> dict[str, str]:
+        wanted = {t.lower() for t in tables}
+        try:
+            rows = self.con.execute(
+                "SELECT schema_name, view_name, sql FROM duckdb_views() WHERE NOT internal"
+            ).fetchall()
+        except Exception:  # older DuckDB, or an attached catalog without the function
+            return {}
+        return _pick_views(rows, wanted)
 
     def probe_write(self) -> bool:
         import duckdb
@@ -199,6 +217,23 @@ class PostgresConnector(Connector):
         finally:
             self.con.rollback()
 
+    def views(self, tables: list[str]) -> dict[str, str]:
+        wanted = {t.lower() for t in tables}
+        sql = (
+            "SELECT schemaname, viewname, definition FROM pg_views "
+            "WHERE schemaname NOT IN ('pg_catalog', 'information_schema') "
+            "UNION ALL SELECT schemaname, matviewname, definition FROM pg_matviews"
+        )
+        try:
+            with self.con.cursor() as cur:
+                cur.execute(sql)
+                rows = cur.fetchall()
+        except Exception:
+            return {}
+        finally:
+            self.con.rollback()
+        return _pick_views(rows, wanted, default_schema="public")
+
     def probe_write(self) -> bool:
         import psycopg
 
@@ -263,6 +298,27 @@ class SQLAlchemyConnector(Connector):
         except Exception as e:
             raise ConnectorError(str(e)) from e
 
+    def views(self, tables: list[str]) -> dict[str, str]:
+        insp = self.sa.inspect(self.engine)
+        out: dict[str, str] = {}
+        names_by_schema: dict[str | None, set[str]] = {}
+        for t in tables:
+            schema, name = _split(t)
+            if schema not in names_by_schema:
+                try:
+                    names_by_schema[schema] = {v.lower() for v in insp.get_view_names(schema=schema)}
+                except Exception:
+                    names_by_schema[schema] = set()
+            if name.lower() not in names_by_schema[schema]:
+                continue
+            try:
+                d = insp.get_view_definition(name, schema=schema)
+            except Exception:  # noqa: S112 - no permission on one view: trace treats it as a source
+                continue
+            if d:
+                out[t.lower()] = str(d)
+        return out
+
     def probe_write(self) -> bool:
         try:
             with self.engine.connect() as c:
@@ -271,6 +327,21 @@ class SQLAlchemyConnector(Connector):
             return True
         except Exception:
             return False
+
+
+def _pick_views(
+    rows: list[tuple[Any, ...]], wanted: set[str], default_schema: str = "main"
+) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for schema, name, sql in rows:
+        if not sql:
+            continue
+        full = f"{schema}.{name}".lower()
+        if full in wanted:
+            out[full] = str(sql)
+        elif str(schema).lower() == default_schema and str(name).lower() in wanted:
+            out[str(name).lower()] = str(sql)
+    return out
 
 
 def connect(url: str) -> Connector:
