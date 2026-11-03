@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-labelledby="np-title">
+  <title id="np-title">Number Passport</title>
+  <style>
+    .np-float { animation: np-float 6s ease-in-out infinite; transform-origin: 64px 64px; }
+    .np-pulse { stroke-dasharray: 26 400; stroke-dashoffset: 26; animation: np-run 4.2s cubic-bezier(.55,.05,.35,1) infinite; }
+    .np-glow  { animation: np-breathe 4.2s ease-in-out infinite; }
+    .np-n1 { animation: np-n1 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-n2 { animation: np-n2 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-n3 { animation: np-n3 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-seal { animation: np-seal 4.2s cubic-bezier(.3,1.6,.5,1) infinite; transform-box: fill-box; transform-origin: center; }
+    .np-ring { animation: np-ring 4.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+    .np-sheen { animation: np-sheen 6s ease-in-out infinite; }
+    @keyframes np-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-2.2px) } }
+    @keyframes np-run { 0% { stroke-dashoffset: 26 } 62% { stroke-dashoffset: -191 } 100% { stroke-dashoffset: -191 } }
+    @keyframes np-breathe { 0%,100% { opacity: .45 } 66% { opacity: .95 } }
+    @keyframes np-n1 { 0%,4% { transform: scale(1.35); filter: brightness(1.7) } 20%,100% { transform: scale(1); filter: none } }
+    @keyframes np-n2 { 0%,16% { transform: scale(1) } 22% { transform: scale(1.4); filter: brightness(1.7) } 36%,100% { transform: scale(1); filter: none } }
+    @keyframes np-n3 { 0%,40% { transform: scale(1) } 46% { transform: scale(1.4); filter: brightness(1.7) } 60%,100% { transform: scale(1); filter: none } }
+    @keyframes np-seal { 0%,58% { transform: scale(1) } 66% { transform: scale(1.28) } 74%,100% { transform: scale(1) } }
+    @keyframes np-ring { 0%,60% { transform: scale(1); opacity: 0 } 64% { opacity: .9 } 90%,100% { transform: scale(2.3); opacity: 0 } }
+    @keyframes np-sheen { 0%,55% { transform: translateX(-170px) } 85%,100% { transform: translateX(170px) } }
+    @media (prefers-reduced-motion: reduce) {
+      .np-float, .np-pulse, .np-glow, .np-n1, .np-n2, .np-n3, .np-seal, .np-ring, .np-sheen { animation: none; }
+      .np-pulse { stroke-dashoffset: -191; }
+    }
+  </style>
+  <defs>
+    <linearGradient id="np-tile" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#1B3554"/>
+      <stop offset="0.55" stop-color="#0F1F33"/>
+      <stop offset="1" stop-color="#08111D"/>
+    </linearGradient>
+    <linearGradient id="np-rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7FB2FF" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#7FB2FF" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#3FD0A4" stop-opacity=".25"/>
+    </linearGradient>
+    <linearGradient id="np-body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8CF7D5"/>
+      <stop offset="0.5" stop-color="#3FD0A4"/>
+      <stop offset="1" stop-color="#1FA884"/>
+    </linearGradient>
+    <radialGradient id="np-node" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#E4EEFF"/>
+      <stop offset="0.45" stop-color="#8DB9FF"/>
+      <stop offset="1" stop-color="#3E6FC2"/>
+    </radialGradient>
+    <radialGradient id="np-sealg" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#C8FFEE"/>
+      <stop offset="0.5" stop-color="#3FD0A4"/>
+      <stop offset="1" stop-color="#14876A"/>
+    </radialGradient>
+    <linearGradient id="np-sheen-g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="np-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="np-blur-s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="np-shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".45"/>
+    </filter>
+    <clipPath id="np-clip"><rect x="0" y="0" width="128" height="128" rx="28"/></clipPath>
+  </defs>
+  <style>
+    .bn-chip { animation: bn-chip 4.2s ease-out infinite both; }
+    .bn-tick { animation: bn-tick 4.2s cubic-bezier(.3,1.6,.5,1) infinite both; transform-box: fill-box; transform-origin: center; }
+    .bn-dot { animation: bn-dot 4.2s ease-in-out infinite both; }
+    .bn-scan { animation: bn-scan 8s linear infinite; }
+    @keyframes bn-chip { 0% { opacity: .35 } 8%,92% { opacity: 1 } 100% { opacity: .35 } }
+    @keyframes bn-tick { 0%,6% { transform: scale(0) } 14%,90% { transform: scale(1) } 100% { transform: scale(0) } }
+    @keyframes bn-dot { 0% { transform: translateX(0); opacity: 0 } 4% { opacity: 1 } 16% { transform: translateX(22px); opacity: 1 } 20%,100% { transform: translateX(22px); opacity: 0 } }
+    @keyframes bn-scan { 0% { transform: translateX(-400px) } 100% { transform: translateX(1680px) } }
+    @media (prefers-reduced-motion: reduce) { .bn-chip, .bn-tick, .bn-dot, .bn-scan { animation: none; } }
+  </style>
+  <defs>
+    <linearGradient id="bn-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132B47"/><stop offset=".55" stop-color="#0A1626"/><stop offset="1" stop-color="#060C15"/>
+    </linearGradient>
+    <linearGradient id="bn-scan-g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3FD0A4" stop-opacity="0"/><stop offset=".5" stop-color="#3FD0A4" stop-opacity=".10"/><stop offset="1" stop-color="#3FD0A4" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="bn-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0 H0 V28" fill="none" stroke="#7FB2FF" stroke-opacity=".06"/></pattern>
+    <clipPath id="bn-clip"><rect width="1280" height="420" rx="24"/></clipPath>
+  </defs>
+  <g clip-path="url(#bn-clip)">
+    <rect width="1280" height="420" fill="url(#bn-bg)"/>
+    <rect width="1280" height="420" fill="url(#bn-grid)"/>
+    <rect class="bn-scan" x="0" y="0" width="300" height="420" fill="url(#bn-scan-g)"/>
+    <circle cx="170" cy="210" r="150" fill="#3FD0A4" opacity=".08" filter="url(#np-blur)"/>
+  </g>
+  <g transform="translate(62 102) scale(1.68)">
+  <g class="np-float">
+    <g filter="url(#np-shadow)">
+      <rect x="0" y="0" width="128" height="128" rx="28" fill="url(#np-tile)"/>
+    </g>
+    <rect x="0.75" y="0.75" width="126.5" height="126.5" rx="27.3" fill="none" stroke="url(#np-rim)" stroke-width="1.5"/>
+    <g clip-path="url(#np-clip)">
+      <rect class="np-sheen" x="-30" y="-20" width="60" height="170" fill="url(#np-sheen-g)" transform="rotate(18)"/>
+    </g>
+    <!-- glow -->
+    <path class="np-glow" d="M36 92 V36 L92 92 V36" fill="none" stroke="#3FD0A4" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" filter="url(#np-blur)"/>
+    <!-- extrusion (depth) -->
+    <path d="M36 92 V36 L92 92 V36" transform="translate(2.2 3.2)" fill="none" stroke="#0B5C48" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 92 V36 L92 92 V36" transform="translate(1.1 1.6)" fill="none" stroke="#138069" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- body -->
+    <path d="M36 92 V36 L92 92 V36" fill="none" stroke="url(#np-body)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- bevel highlight -->
+    <path d="M36 92 V36 L92 92 V36" transform="translate(-1.3 -1.6)" fill="none" stroke="#E9FFF8" stroke-opacity=".45" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- travelling pulse -->
+    <path class="np-pulse" d="M36 92 V36 L92 92 V36" fill="none" stroke="#B9FFE9" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" filter="url(#np-blur-s)"/>
+    <path class="np-pulse" d="M36 92 V36 L92 92 V36" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- nodes -->
+    <g class="np-n1"><circle cx="36" cy="92" r="9.5" fill="#0F1F33" stroke="url(#np-node)" stroke-width="5.5"/></g>
+    <g class="np-n2"><circle cx="36" cy="36" r="7.5" fill="url(#np-node)"/><circle cx="33.6" cy="33.4" r="2.2" fill="#fff" opacity=".8"/></g>
+    <g class="np-n3"><circle cx="92" cy="92" r="7.5" fill="url(#np-node)"/><circle cx="89.6" cy="89.4" r="2.2" fill="#fff" opacity=".8"/></g>
+    <!-- verified seal -->
+    <circle class="np-ring" cx="92" cy="36" r="12.5" fill="none" stroke="#3FD0A4" stroke-width="2.5"/>
+    <g class="np-seal">
+      <circle cx="93" cy="38" r="12.5" fill="#0B5C48"/>
+      <circle cx="92" cy="36" r="12.5" fill="url(#np-sealg)"/>
+      <path d="M86.3 36.4 L90.5 40.6 L98.2 32.4" fill="none" stroke="#0A1A2A" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  </g>
+  <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="330" y="150" font-size="70" font-weight="800" letter-spacing="-2" fill="#F0F3F6">Number Passport</text>
+    <text x="333" y="198" font-size="25" font-weight="500" fill="#A9C4E8">Trace any reported number to its source rows, reconcile every hop,</text>
+    <text x="333" y="232" font-size="25" font-weight="500" fill="#A9C4E8">and prove it with evidence an auditor can re-check.</text>
+    <text x="333" y="290" font-size="14" font-weight="700" letter-spacing="3" fill="#3FD0A4">LIVE TRACE · TOTAL EAD 2,365,768,570.80 USD · EVERY HOP RECONCILED</text>
+    
+    <g class="bn-chip" style="animation-delay:0.35s">
+      <rect x="330" y="318" width="208" height="64" rx="14" fill="#0F2136" stroke="#2A4B70" stroke-width="1.5"/>
+      <text x="348" y="346" font-size="16" font-weight="700" fill="#E6EEF8">bronze.loans</text>
+      <text x="348" y="368" font-size="13" font-weight="600" letter-spacing="1.6" fill="#7FB2FF">SOURCE</text>
+      <g class="bn-tick" style="animation-delay:0.35s">
+        <circle cx="516" cy="350" r="11" fill="#3FD0A4"/>
+        <path d="M511 350 l3.6 3.6 l6.6 -7" fill="none" stroke="#0A1A2A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+    <path d="M540 350 H562" stroke="#2A4B70" stroke-width="2"/>
+    <circle class="bn-dot" style="animation-delay:0.35s" cx="540" cy="350" r="4" fill="#B9FFE9"/>
+    <g class="bn-chip" style="animation-delay:1.10s">
+      <rect x="564" y="318" width="208" height="64" rx="14" fill="#0F2136" stroke="#2A4B70" stroke-width="1.5"/>
+      <text x="582" y="346" font-size="16" font-weight="700" fill="#E6EEF8">silver.exposures</text>
+      <text x="582" y="368" font-size="13" font-weight="600" letter-spacing="1.6" fill="#7FB2FF">RECONCILED</text>
+      <g class="bn-tick" style="animation-delay:1.10s">
+        <circle cx="750" cy="350" r="11" fill="#3FD0A4"/>
+        <path d="M745 350 l3.6 3.6 l6.6 -7" fill="none" stroke="#0A1A2A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+    <path d="M774 350 H796" stroke="#2A4B70" stroke-width="2"/>
+    <circle class="bn-dot" style="animation-delay:1.10s" cx="774" cy="350" r="4" fill="#B9FFE9"/>
+    <g class="bn-chip" style="animation-delay:1.85s">
+      <rect x="798" y="318" width="208" height="64" rx="14" fill="#0F2136" stroke="#2A4B70" stroke-width="1.5"/>
+      <text x="816" y="346" font-size="16" font-weight="700" fill="#E6EEF8">gold.rwa_by_class</text>
+      <text x="816" y="368" font-size="13" font-weight="600" letter-spacing="1.6" fill="#7FB2FF">RECONCILED</text>
+      <g class="bn-tick" style="animation-delay:1.85s">
+        <circle cx="984" cy="350" r="11" fill="#3FD0A4"/>
+        <path d="M979 350 l3.6 3.6 l6.6 -7" fill="none" stroke="#0A1A2A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+    <path d="M1008 350 H1030" stroke="#2A4B70" stroke-width="2"/>
+    <circle class="bn-dot" style="animation-delay:1.85s" cx="1008" cy="350" r="4" fill="#B9FFE9"/>
+    <g class="bn-chip" style="animation-delay:2.60s">
+      <rect x="1032" y="318" width="208" height="64" rx="14" fill="#0F2136" stroke="#2A4B70" stroke-width="1.5"/>
+      <text x="1050" y="346" font-size="16" font-weight="700" fill="#E6EEF8">Q3 capital report</text>
+      <text x="1050" y="368" font-size="13" font-weight="600" letter-spacing="1.6" fill="#7FB2FF">VERIFIED</text>
+      <g class="bn-tick" style="animation-delay:2.60s">
+        <circle cx="1218" cy="350" r="11" fill="#3FD0A4"/>
+        <path d="M1213 350 l3.6 3.6 l6.6 -7" fill="none" stroke="#0A1A2A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </g>
+</svg>

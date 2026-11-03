@@ -1,7 +1,18 @@
-# Number Passport
+<div align="center">
 
-**Trace any number on a risk or regulatory report back to its source rows, through your real pipeline code,
-and prove every step with an evidence pack an auditor can re-check.**
+<img alt="Number Passport: trace any reported number to its source rows, reconcile every hop, and prove it" src="https://raw.githubusercontent.com/sagarkonkanagaon-netizenk/number-passport/main/docs/assets/banner.svg" width="100%">
+
+[![CI](https://github.com/sagarkonkanagaon-netizenk/number-passport/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sagarkonkanagaon-netizenk/number-passport/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-1F4A73.svg)](LICENSE)
+[![Python 3.10 to 3.13](https://img.shields.io/badge/python-3.10%20%E2%80%93%203.13-1F4A73.svg)](pyproject.toml)
+[![BCBS 239](https://img.shields.io/badge/built%20for-BCBS%20239-1F9D63.svg)](docs/faq.md#which-regulations-does-it-help-with)
+[![MCP server](https://img.shields.io/badge/MCP-server%20%2B%20skill-1F4A73.svg)](#use-it-from-an-ai-assistant)
+
+[How it works](docs/how-it-works.md) · [Quick start](#try-it-in-two-minutes) · [Configuration](docs/configuration.md) · [Security](docs/security.md) · [Architecture](docs/architecture.md) · [FAQ](docs/faq.md)
+
+</div>
+
+---
 
 A regulator asks: *"Where does the 1,088,769,797.07 of risk-weighted assets on page 4 come from?"* Today a
 team spends days reading SQL, dbt models and Spark jobs and running ad-hoc queries. Number Passport answers
@@ -152,6 +163,18 @@ read-only except `trace_number`, which writes the evidence pack to disk.
   assistant only sees the digest of totals, counts and code locations.
 - The HTTP MCP transport has no authentication of its own: run it behind your own authenticating proxy.
 
+The full threat model, guard rules and a reviewer summary are in [docs/security.md](docs/security.md).
+
+## Documentation
+
+| Guide | For |
+|-------|-----|
+| [How it works](docs/how-it-works.md) | Everyone: the method, a worked example, statuses and every finding code. |
+| [Configuration reference](docs/configuration.md) | Data engineers: `passport.yml`, connections, metrics and privacy modes. |
+| [Security and privacy model](docs/security.md) | Security, data protection and model risk reviewers. |
+| [Architecture](docs/architecture.md) | Contributors: modules, design decisions and how to extend. |
+| [FAQ](docs/faq.md) | Comparisons with lineage and data-diff tools, regulations, limits. |
+
 ## Configuration
 
 See [`examples/bank/passport.yml`](examples/bank/passport.yml) for a complete, commented example: code paths,
@@ -182,6 +205,15 @@ pytest                                      # Postgres tests run when NP_TEST_PO
 CI runs lint, types and the full suite on Python 3.10 to 3.13, against a real PostgreSQL service and a real
 local Spark.
 
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately as described in
+[SECURITY.md](SECURITY.md). For help, see [SUPPORT.md](SUPPORT.md). Changes are listed in
+[CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-Apache-2.0
+Copyright 2026 Sagar Konkanagaon. Licensed under the [Apache License, Version 2.0](LICENSE); see
+[NOTICE](NOTICE). You may use, modify and distribute it, including commercially, under the terms of that
+license.

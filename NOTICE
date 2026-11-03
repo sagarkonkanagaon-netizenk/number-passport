@@ -1,0 +1,17 @@
+Number Passport
+Copyright 2026 Sagar Konkanagaon
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product depends on third-party open source software, distributed under their own licenses
+and not bundled in this repository, including:
+
+  sqlglot     (MIT License)            https://github.com/tobymao/sqlglot
+  DuckDB      (MIT License)            https://github.com/duckdb/duckdb
+  PyYAML      (MIT License)            https://github.com/yaml/pyyaml
+  MCP SDK     (MIT License)            https://github.com/modelcontextprotocol/python-sdk
+  psycopg     (LGPL-3.0, optional)     https://github.com/psycopg/psycopg
+  SQLAlchemy  (MIT License, optional)  https://github.com/sqlalchemy/sqlalchemy
+
+The Code of Conduct is adapted from the Contributor Covenant, version 2.1
+(https://www.contributor-covenant.org), licensed under CC BY 4.0.

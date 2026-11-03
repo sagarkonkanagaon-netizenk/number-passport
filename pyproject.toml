@@ -35,6 +35,10 @@ passport = "number_passport.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/sagarkonkanagaon-netizenk/number-passport"
+Documentation = "https://github.com/sagarkonkanagaon-netizenk/number-passport/tree/main/docs"
+Changelog = "https://github.com/sagarkonkanagaon-netizenk/number-passport/blob/main/CHANGELOG.md"
+Issues = "https://github.com/sagarkonkanagaon-netizenk/number-passport/issues"
+Security = "https://github.com/sagarkonkanagaon-netizenk/number-passport/security/policy"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/number_passport"]
@@ -58,6 +62,7 @@ ignore = ["S101", "S608", "S603", "S607"]
 "tests/*" = ["S"]
 "examples/*" = ["S", "E501"]
 "src/number_passport/evidence.py" = ["E501"]  # HTML/CSS template
+"docs/assets/make_logo.py" = ["E501"]  # SVG/CSS template
 
 [tool.mypy]
 python_version = "3.10"
