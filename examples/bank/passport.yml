@@ -1,0 +1,60 @@
+# Number Passport configuration for the sample bank pipeline.
+project: sample-bank-capital
+dialect: duckdb            # dialect the pipeline code is written in
+
+code:
+  sql: models/sql          # CREATE TABLE ... AS / INSERT INTO files
+  dbt:
+    models: models/dbt     # or: manifest: target/manifest.json (preferred when you run dbt compile)
+  pyspark: jobs
+  airflow: dags
+
+connection:
+  # read-only. Alternatives:
+  #   postgresql://reader@db.internal/risk      (pip install number-passport[postgres])
+  #   snowflake://...  databricks://...          (pip install number-passport[sqlalchemy] + driver)
+  #   files:///exports                           (CSV / Parquet extracts, one folder per schema)
+  url: ${PASSPORT_DB_URL:-duckdb:///warehouse/bank.duckdb}
+
+privacy:
+  mode: aggregates_only    # only totals and counts ever leave the database
+
+tolerance:
+  absolute: 0.01           # USD
+
+as_of: "2026-09-30T08:00:00+00:00"
+
+tables:
+  bronze.loans:
+    key: [loan_id, load_ts]
+    freshness_column: load_ts
+    max_age_hours: 26
+  silver.exposures:
+    key: [loan_id]
+  silver.collateral_adj:
+    key: [loan_id]
+
+metrics:
+  total_rwa:
+    label: Total risk-weighted assets (USD)
+    table: gold.rwa_by_class
+    column: rwa_usd
+    agg: sum
+    report:
+      file: reports/q3_capital_report.csv
+      row: Total RWA
+      column: value_usd
+  total_ead:
+    label: Total exposure at default (USD)
+    table: gold.rwa_by_class
+    column: ead_usd
+    agg: sum
+    report:
+      file: reports/q3_capital_report.csv
+      row: Total EAD
+      column: value_usd
+  corporate_rwa:
+    label: Corporate RWA (USD)
+    table: gold.rwa_by_class
+    column: rwa_usd
+    where: asset_class = 'CORPORATE'

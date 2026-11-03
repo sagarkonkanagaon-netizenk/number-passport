@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy src
+
+  test:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: np_owner
+          POSTGRES_PASSWORD: owner
+          POSTGRES_DB: bank
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U np_owner -d bank"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NP_TEST_POSTGRES_URL: postgresql://np_owner:owner@127.0.0.1:5432/bank
+      NP_TEST_POSTGRES_READER_URL: postgresql://np_reader:reader@127.0.0.1:5432/bank
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Create a SELECT-only reader role
+        run: psql "$NP_TEST_POSTGRES_URL" -c "CREATE ROLE np_reader LOGIN PASSWORD 'reader'"
+      - name: Run tests (Spark runs in its own job)
+        run: pytest -rs --cov=number_passport --cov-report=term-missing --deselect tests/test_spark.py
+
+  spark:
+    name: Real Spark and full integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: np_owner
+          POSTGRES_PASSWORD: owner
+          POSTGRES_DB: bank
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U np_owner -d bank"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NP_TEST_POSTGRES_URL: postgresql://np_owner:owner@127.0.0.1:5432/bank
+      NP_TEST_POSTGRES_READER_URL: postgresql://np_reader:reader@127.0.0.1:5432/bank
+      NP_TEST_NO_SKIP: "1" # every test must run here: no Postgres, Java or Spark means red, not skipped
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]" "pyspark>=3.5"
+      - run: psql "$NP_TEST_POSTGRES_URL" -c "CREATE ROLE np_reader LOGIN PASSWORD 'reader'"
+      - run: pytest -rs
+      - name: End-to-end demo from the README
+        working-directory: examples/bank
+        run: |
+          python build.py
+          passport doctor
+          passport trace total_ead --strict
+          passport trace corporate_rwa --strict
+          set +e; passport trace total_rwa --strict --out passports/total_rwa; code=$?; set -e
+          test "$code" -eq 2 || { echo "expected exit 2 (gaps found), got $code"; exit 1; }
+          passport verify passports/total_rwa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sample-evidence-pack
+          path: examples/bank/passports/total_rwa
+
+  package:
+    name: Build and install the wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - name: Install the wheel in a clean venv and run it
+        run: |
+          python -m venv /tmp/wheel
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp]"
+          /tmp/wheel/bin/passport --version
+          cd /tmp && /tmp/wheel/bin/passport init --project /tmp/np && test -f /tmp/np/passport.yml
