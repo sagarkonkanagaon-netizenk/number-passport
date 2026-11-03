@@ -42,16 +42,18 @@ flowchart LR
 | Module | Responsibility |
 |--------|----------------|
 | `config.py` | Load and validate `passport.yml`, expand `${ENV}` references, resolve paths. |
-| `parsers/sql_parser.py` | Turn SQL files into `Model`s (target, query, upstream, file and line). |
+| `parsers/sql_parser.py` | Turn SQL scripts and stored procedures into `Model`s (target, query, upstream, file and line): statement-by-statement parsing with a fallback splitter, procedure bodies per dialect, temp-table inlining, `MERGE`, and post-load `DELETE`/`UPDATE` folded into the query. |
+| `parsers/sas_parser.py` | Translate SAS `PROC SQL`, DATA steps, `PROC SORT`, `PROC MEANS` and `PROC APPEND` into SQL CTEs with a line map back to the `.sas` file. |
+| `parsers/informatica_parser.py` | Translate PowerCenter mapping exports (XML) into SQL, one CTE per transformation, following port wiring. |
 | `parsers/dbt_parser.py` | dbt sources (Jinja blanked, line numbers kept) or `manifest.json`. |
 | `parsers/pyspark_parser.py` | Read PySpark as a Python syntax tree and translate each DataFrame line into a SQL CTE, with a line map back to the Python. |
 | `parsers/airflow_parser.py` | Map job files to DAG id, task id and schedule. |
-| `project.py` | One lineage graph: upstream, downstream, ancestors, cycles, duplicate producers. |
+| `project.py` | One lineage graph: upstream, downstream, ancestors, cycles, duplicate producers; adds views defined only in the warehouse. |
 | `guard.py` | Check every query before it runs, enforce the row limit, keep the audit log. |
 | `connectors.py` | Read-only database access behind one small interface (`query`, `columns`, `schema`, `ping`, `probe_write`). |
 | `reconcile.py` | Per-hop analysis: recomputed vs actual, relaxed value, sequential step attribution, rows removed, inner-join loss in native units, fan-out. |
 | `quality.py` | Row count, measure NULLs, duplicate keys and freshness for each table. |
-| `trace.py` | Walk from the metric to the sources, add the report hop, collect findings and code fingerprints, decide the status. |
+| `trace.py` | Walk from the metric to the sources, add the report hop, collect findings and code fingerprints, decide the status. Averages and ratios become a `CompositePassport` over two additive traces. |
 | `evidence.py` | Write and verify evidence packs; render the self-contained HTML page. |
 | `doctor.py` | Check every connection point before a trace. |
 | `service.py` | The small API both front ends call. |
@@ -83,7 +85,7 @@ re-checkable years later with `passport verify`.
 ## Extending
 
 - **A new warehouse**: subclass `Connector` in `connectors.py` and implement `query`, `columns`, `ping` and
-  `probe_write`, with read-only enforced at the session level. Register the URL scheme in `connect()`.
+  `probe_write` (and `views` to follow database-only views), with read-only enforced at the session level. Register the URL scheme in `connect()`.
 - **A new code language**: write a parser that yields `Model` objects (target, sqlglot query, upstream
   tables, `SourceRef` with file and line, and `line_map` if one model spans several lines). Add it to
   `load_project`.

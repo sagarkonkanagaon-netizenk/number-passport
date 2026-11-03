@@ -22,10 +22,12 @@ project: {name}
 dialect: duckdb            # dialect your pipeline SQL is written in (duckdb, postgres, snowflake, spark, ...)
 
 code:
-  sql: models              # CREATE TABLE ... AS / INSERT INTO ... SELECT files
+  sql: models              # SQL scripts and stored procedures (.sql)
   # dbt:
   #   manifest: target/manifest.json   # preferred: run `dbt compile` first
   # pyspark: jobs
+  # sas: {{paths: sas, libnames: {{dw: gold}}}}
+  # informatica: {{paths: informatica_exports, schemas: {{RAW_DB: raw}}}}
   # airflow: dags
 
 connection:
@@ -44,6 +46,11 @@ metrics:
   #   table: gold.rwa_by_class
   #   column: rwa_usd
   #   report: {{file: reports/capital.csv, row: Total RWA, column: value}}
+  # rwa_density:
+  #   agg: ratio
+  #   numerator: total_rwa
+  #   denominator: {{table: gold.rwa_by_class, column: ead_usd}}
+  #   scale: percent
 """
 
 

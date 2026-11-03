@@ -19,7 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 dependencies = [
-  "sqlglot>=27",
+  "sqlglot>=30",
   "duckdb>=1.1",
   "pyyaml>=6",
 ]

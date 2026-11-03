@@ -34,13 +34,17 @@ tables:
 
 | Code | What is parsed | Notes |
 |------|----------------|-------|
-| SQL files | `CREATE TABLE ... AS SELECT`, `CREATE VIEW ... AS`, `INSERT INTO ... SELECT` | Any dialect sqlglot supports; set `dialect:` in `passport.yml`. |
+| SQL files | `CREATE TABLE/VIEW ... AS`, `INSERT INTO ... SELECT` (column lists, several inserts into one table become `UNION ALL`), `INSERT OVERWRITE`, `SELECT ... INTO`, `MERGE`, and `DELETE ... WHERE` / `UPDATE ... SET` after a load (folded in as a filter and a `CASE WHEN`, so their effect is measured like any step) | Any dialect sqlglot supports; set `dialect:` in `passport.yml`. Statements are read one by one, so one unreadable statement is reported without hiding the rest of the file. |
+| Stored procedures | Bodies of `CREATE PROCEDURE/FUNCTION` and anonymous blocks: SQL Server (with or without semicolons, `GO` batches), PostgreSQL PL/pgSQL (`$$` bodies, `DO`), Snowflake, BigQuery, Oracle PL/SQL | Temp and staging tables (`#tmp`, `CREATE TEMP TABLE`) are inlined into the statement that reads them. A statement under `IF` is noted as conditional. `SELECT ... INTO` a variable is ignored. Dynamic SQL and procedures written in JavaScript or Python are listed as parse issues. |
+| Warehouse views | View definitions read from the catalog (`duckdb_views()`, `pg_views`/`pg_matviews`, the SQLAlchemy inspector) for tables no file builds | Only metadata is read. Each definition is fingerprinted; `verify` reports a changed view. `connection.read_views: false` turns it off. |
 | dbt | Model files with `ref()`, `source()` and `config()`, or `target/manifest.json` | Jinja is blanked out so line numbers stay true. Other Jinja (macros, loops) marks the model `opaque`. With a manifest, the compiled SQL is used. |
 | PySpark | `spark.table`, `spark.read.table`, `spark.sql`, then `filter/where`, `select`, `withColumn`, `withColumnRenamed`, `drop`, `join`, `groupBy().agg()`, `distinct`, `dropDuplicates`, and `saveAsTable` / `insertInto` | Each DataFrame line becomes one SQL CTE, so a step found later points back at the Python line. Column names are tracked through a schema read from the warehouse. |
+| SAS | `PROC SQL`, DATA steps (`SET`, `MERGE ... BY` with `IN=`, `WHERE`, subsetting `IF`, `IF ... THEN DELETE`, assignments, `IF/ELSE` assignments, `KEEP`/`DROP`/`RENAME`), `PROC SORT` (`NODUPKEY`), `PROC MEANS/SUMMARY` (`NWAY`, `OUTPUT OUT=`), `PROC APPEND`, `%LET` | WORK datasets are inlined; librefs map to schemas. SAS operators, double-quoted strings, date literals, row-wise `sum()` and `round(x, 0.01)` are translated. Each step maps back to its `.sas` line. |
+| Informatica PowerCenter | Repository XML exports: Source Qualifier (SQL override, source filter, user-defined join, distinct), Filter, Expression (variable ports), Aggregator, Joiner, connected Lookup, Router groups, Union, Sorter, Update Strategy | One CTE per transformation, mapped to its XML line. Ports flow through passive transformations as they do at run time. Expressions (`IIF`, `DECODE`, `ISNULL`, `SYSDATE`) are translated. |
 | Airflow | DAG files | Tags each model with the DAG, task and schedule that run it. |
 
 Each parsed model records its target table, upstream tables, source file and line, and the kind of code
-that produced it. The result is one directed graph across all four languages. `passport doctor` checks this
+that produced it. The result is one directed graph across every language. `passport doctor` checks this
 graph for parse errors, duplicate producers of the same table and cycles.
 
 Code that cannot be translated faithfully (a UDF, an RDD, dynamic SQL) still becomes a model, marked
